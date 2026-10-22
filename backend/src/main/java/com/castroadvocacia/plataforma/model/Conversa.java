@@ -26,6 +26,8 @@ public class Conversa {
     @Column(nullable = false)
     private String nomeContato;
 
+    private String cargoContato;
+
     private boolean online;
 
     private int naoLidas;

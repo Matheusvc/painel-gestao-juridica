@@ -1,7 +1,7 @@
 export interface ProcessSegment {
   label: string;
   value: number;
-  /** Cor do segmento (hex). */
+  /** Cor da coluna (hex). */
   color: string;
 }
 
@@ -11,52 +11,53 @@ interface ProcessStatusChartProps {
   ariaLabel: string;
 }
 
+/** Altura máxima da coluna mais alta (px) — deixa ar acima para o rótulo. */
+const MAX_BAR = 136;
+/** Piso de altura (px) para valores pequenos continuarem visíveis/clicáveis. */
+const MIN_BAR = 6;
+
 /**
- * Composição de processos por status em uma única barra segmentada
- * (identidade sempre por rótulo + cor, nunca só por cor — legenda abaixo
- * carrega rótulo, valor e %; tooltip nativo por segmento).
+ * Processos por status em colunas verticais — uma barra por status, crescendo
+ * de uma linha de base comum (identidade por rótulo + cor; valor sempre
+ * rotulado diretamente, nunca só por cor ou só no hover).
  */
 export function ProcessStatusChart({ segments, ariaLabel }: ProcessStatusChartProps) {
   const total = segments.reduce((sum, s) => sum + s.value, 0) || 1;
+  const max = Math.max(...segments.map((s) => s.value), 1);
 
   return (
-    <div className="flex flex-col gap-5">
-      <div
-        className="flex h-4 w-full gap-[2px] overflow-hidden rounded-full bg-surface"
+    <div>
+      <ul
+        className="flex items-end justify-between gap-2 border-b border-gray-500/60 sm:gap-4"
         role="img"
         aria-label={ariaLabel}
       >
         {segments.map((s) => {
           const pct = Math.round((s.value / total) * 100);
+          const barHeight = s.value > 0 ? Math.max((s.value / max) * MAX_BAR, MIN_BAR) : 0;
           return (
-            <div
-              key={s.label}
-              style={{ flexGrow: s.value, flexBasis: 0, backgroundColor: s.color }}
-              title={`${s.label}: ${s.value} (${pct}%)`}
-            />
+            <li key={s.label} className="flex flex-1 flex-col items-center gap-1.5">
+              <span className="text-sm font-bold leading-none tabular-nums text-gray-100">
+                {s.value}
+              </span>
+              <div
+                tabIndex={0}
+                title={`${s.label}: ${s.value} (${pct}%)`}
+                className="w-5 rounded-t-md outline-none transition-[filter,transform] duration-150 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-blue-base focus-visible:ring-offset-2 sm:w-6"
+                style={{ height: barHeight, backgroundColor: s.color }}
+              />
+            </li>
           );
         })}
-      </div>
+      </ul>
 
-      <ul className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <ul className="mt-2 flex justify-between gap-2 sm:gap-4">
         {segments.map((s) => {
           const pct = Math.round((s.value / total) * 100);
           return (
-            <li key={s.label} className="flex flex-col gap-1">
-              <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.6px] text-gray-400">
-                <span
-                  className="size-2.5 shrink-0 rounded-sm"
-                  style={{ backgroundColor: s.color }}
-                  aria-hidden="true"
-                />
-                {s.label}
-              </span>
-              <span className="flex items-baseline gap-1.5">
-                <span className="text-xl font-bold leading-none tabular-nums text-gray-100">
-                  {s.value}
-                </span>
-                <span className="text-xs text-gray-400">{pct}%</span>
-              </span>
+            <li key={s.label} className="flex flex-1 flex-col items-center gap-0.5">
+              <span className="text-xs font-medium text-gray-200">{s.label}</span>
+              <span className="text-xs text-gray-400">{pct}%</span>
             </li>
           );
         })}

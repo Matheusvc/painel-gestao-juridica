@@ -21,6 +21,7 @@ public class CorsConfig {
 
         var source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", config);
+        source.registerCorsConfiguration("/ws/**", config);
         return new CorsFilter(source);
     }
 }

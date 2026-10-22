@@ -29,6 +29,10 @@ public class Cliente {
 
     private String numeroProcesso;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private StatusCliente status = StatusCliente.ATIVO;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime criadoEm = LocalDateTime.now();
 

@@ -21,11 +21,14 @@ public class Servico {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(nullable = false, unique = true)
+    private Integer numero;
+
     @NotBlank
     @Column(nullable = false)
     private String titulo;
 
-    private String descricao;
+    private String tipoServico;
 
     @Column(precision = 12, scale = 2)
     private BigDecimal valorTotal;
