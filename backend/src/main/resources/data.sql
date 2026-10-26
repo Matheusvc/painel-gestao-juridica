@@ -19,6 +19,6 @@ INSERT INTO servicos (id, numero, titulo, tipo_servico, valor_total, responsavel
   ('22222222-2222-2222-2222-222222222205', 5, 'Meu fone não conecta no computador',  'Suporte de Software',    80.00, 'Ana Oliveira', 'CONCLUIDO',    '2025-04-11 15:16:00', '2025-04-11 15:16:00'),
   ('22222222-2222-2222-2222-222222222206', 6, 'Solicitação de upgrade de servidor',   'Consultoria de TI',     350.00, 'Carlos Silva', 'EM_ANALISE',   '2025-04-14 11:40:00', '2025-04-14 11:40:00');
 
--- Usuario admin padrao
+-- Usuario admin padrao (senha: castro2025)
 INSERT INTO usuarios (id, nome, email, senha, perfil, criado_em) VALUES
-  ('55555555-5555-5555-5555-555555555501', 'Usuário Adm', 'user.adm@test.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'ADMIN', NOW());
+  ('55555555-5555-5555-5555-555555555501', 'Usuário Adm', 'admin@castroadvocacia.com', '$2a$10$wWeEuVw7LHdJsVYrSCdVBeEu8l5XN2Mq8NXxHqMOtR82KOdcrzGQG', 'ADMIN', NOW());

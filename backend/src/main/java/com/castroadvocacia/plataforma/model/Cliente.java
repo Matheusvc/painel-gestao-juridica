@@ -24,7 +24,7 @@ public class Cliente {
     @Column(nullable = false)
     private String nome;
 
-    @Column(length = 14)
+    @Column(length = 20)
     private String cpf;
 
     private String numeroProcesso;
