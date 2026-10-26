@@ -23,22 +23,3 @@ export const clientDeltas = {
   inactive: -4,
   pending: 6,
 } as const;
-
-/**
- * Processos jurídicos por status (mock). total = open + inAnalysis + done + pending.
- */
-export interface ProcessStats {
-  total: number;
-  open: number;
-  inAnalysis: number;
-  done: number;
-  pending: number;
-}
-
-export const processStats: ProcessStats = {
-  total: 46,
-  open: 14,
-  inAnalysis: 18,
-  done: 9,
-  pending: 5,
-};

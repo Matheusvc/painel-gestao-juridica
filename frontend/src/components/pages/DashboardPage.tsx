@@ -4,10 +4,10 @@ import { colors } from "@/theme";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { DonutChart } from "@/components/dashboard/DonutChart";
 import { StatusBarChart } from "@/components/dashboard/StatusBarChart";
-import { ProcessStatusChart } from "@/components/dashboard/ProcessStatusChart";
+
 import { ExportReportButton } from "@/components/dashboard/ExportReportButton";
 import { usePersistentState } from "@/hooks/usePersistentState";
-import { clientStats, clientDeltas, processStats } from "@/data/mockDashboard";
+import { clientStats, clientDeltas } from "@/data/mockDashboard";
 import { mockServices } from "@/data/mockServices";
 import type { Service } from "@/types/entities";
 
@@ -53,13 +53,6 @@ function ChartCard({
 /** Dashboard: indicadores de clientes + gráficos de status. */
 export function DashboardPage() {
   const { total, active, inactive, pending } = clientStats;
-  const {
-    total: processTotal,
-    open: processOpen,
-    inAnalysis: processInAnalysis,
-    done: processDone,
-    pending: processPending,
-  } = processStats;
 
   // Lê os serviços persistidos (reflete criações/edições da página Serviços).
   const [services] = usePersistentState<Service[]>("castro.services", mockServices);
@@ -183,22 +176,6 @@ export function DashboardPage() {
           />
         </ChartCard>
       </div>
-
-      <ChartCard
-        title="Processos por status"
-        caption={`${processTotal} no total`}
-        style={stagger(7)}
-      >
-        <ProcessStatusChart
-          ariaLabel={`Processos por status: ${processOpen} abertos, ${processInAnalysis} em análise, ${processDone} concluídos, ${processPending} pendentes`}
-          segments={[
-            { label: "Aberto", value: processOpen, color: colors.status.open },
-            { label: "Em análise", value: processInAnalysis, color: colors.status.progress },
-            { label: "Concluído", value: processDone, color: colors.status.done },
-            { label: "Pendente", value: processPending, color: colors.blue.light },
-          ]}
-        />
-      </ChartCard>
     </div>
   );
 }
