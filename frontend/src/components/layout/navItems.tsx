@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { MessageSquareText } from "lucide-react";
 import { InlineIcon } from "./InlineIcon";
 import dashboardIcon from "@/assets/icon-dashboard.svg?raw";
 import clientesIcon from "@/assets/icon-clientes.svg?raw";
@@ -15,19 +14,13 @@ export interface NavItem {
 
 const iconClass = "size-[22px] [&>svg]:size-[22px]";
 
-/** Links de navegação (Figma: Dashboard / Clientes / Serviços + Conversas). */
+/** Links de navegação (Dashboard / Clientes / Serviços). */
 export const navItems: NavItem[] = [
   {
     id: "dashboard",
     label: "Dashboard",
     icon: <InlineIcon svg={dashboardIcon} className={iconClass} />,
     href: "#dashboard",
-  },
-  {
-    id: "conversas",
-    label: "Conversas",
-    icon: <MessageSquareText size={22} aria-hidden="true" />,
-    href: "#conversas",
   },
   {
     id: "clientes",
