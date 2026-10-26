@@ -13,7 +13,7 @@ interface SidebarProps {
   activeId: string;
   onSelect: (id: string) => void;
   user: SidebarUser;
-  /** Rótulo da navegação para leitores de tela. */
+  onLogout?: () => void;
   navLabel?: string;
 }
 
@@ -22,6 +22,7 @@ export function Sidebar({
   activeId,
   onSelect,
   user,
+  onLogout,
   navLabel = "Navegação principal",
 }: SidebarProps) {
   return (
@@ -43,7 +44,7 @@ export function Sidebar({
         </ul>
       </nav>
 
-      <UserCard name={user.name} email={user.email} initials={user.initials} />
+      <UserCard name={user.name} email={user.email} initials={user.initials} onLogout={onLogout} />
     </div>
   );
 }

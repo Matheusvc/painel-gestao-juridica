@@ -9,17 +9,13 @@ export interface ReportData {
     active: number;
     inactive: number;
     pending: number;
-    deltas: { total: number; active: number; inactive: number; pending: number };
   };
-  services: { open: number; progress: number; done: number; total: number };
+  processos: Record<string, Record<string, number>>;
 }
 
 const pct = (value: number, total: number) =>
   total > 0 ? `${Math.round((value / total) * 100)}%` : "0%";
 
-const signed = (n: number) => `${n >= 0 ? "+" : ""}${n}`;
-
-/** Gera e baixa um arquivo a partir de texto. */
 function downloadText(filename: string, text: string, mime: string) {
   const blob = new Blob([text], { type: mime });
   const url = URL.createObjectURL(blob);
@@ -32,39 +28,56 @@ function downloadText(filename: string, text: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
+function sumValues(record: Record<string, number>) {
+  return Object.values(record).reduce((a, b) => a + b, 0);
+}
+
 function buildCsv(d: ReportData): string {
-  const { clients: c, services: s } = d;
+  const { clients: c, processos } = d;
   const rows: string[][] = [
     ["Relatório do Dashboard — Castro Advocacia"],
     ["Gerado em", new Date().toLocaleString("pt-BR")],
     [],
-    ["Indicador", "Valor", "Variação (%)"],
-    ["Total de clientes", String(c.total), signed(c.deltas.total)],
-    ["Ativos", String(c.active), signed(c.deltas.active)],
-    ["Inativos", String(c.inactive), signed(c.deltas.inactive)],
-    ["Pendentes", String(c.pending), signed(c.deltas.pending)],
-    [],
-    ["Status dos clientes", "Quantidade", "Percentual"],
+    ["Clientes", "Quantidade", "Percentual"],
+    ["Total", String(c.total), "100%"],
     ["Ativos", String(c.active), pct(c.active, c.total)],
     ["Inativos", String(c.inactive), pct(c.inactive, c.total)],
     ["Pendentes", String(c.pending), pct(c.pending, c.total)],
-    [],
-    ["Serviços por status", "Quantidade", "Percentual"],
-    ["Aberto", String(s.open), pct(s.open, s.total)],
-    ["Em atendimento", String(s.progress), pct(s.progress, s.total)],
-    ["Encerrado", String(s.done), pct(s.done, s.total)],
   ];
+
+  for (const [categoria, statusMap] of Object.entries(processos)) {
+    const totalCat = sumValues(statusMap);
+    rows.push([], [categoria, "Quantidade", "Percentual"]);
+    for (const [label, value] of Object.entries(statusMap)) {
+      rows.push([label, String(value), pct(value, totalCat)]);
+    }
+  }
+
   const body = rows
     .map((r) => r.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(";"))
     .join("\r\n");
-  // BOM para acentuação correta no Excel.
   return `﻿${body}`;
 }
 
 function buildReportHtml(d: ReportData): string {
-  const { clients: c, services: s } = d;
+  const { clients: c, processos } = d;
   const row = (label: string, value: string | number, extra: string) =>
     `<tr><td>${label}</td><td class="num">${value}</td><td class="num muted">${extra}</td></tr>`;
+
+  const processosHtml = Object.entries(processos)
+    .map(([categoria, statusMap]) => {
+      const totalCat = sumValues(statusMap);
+      const rows = Object.entries(statusMap)
+        .map(([label, value]) => row(label, value, pct(value, totalCat)))
+        .join("\n    ");
+      return `
+  <h2>${categoria}</h2>
+  <table><thead><tr><th>Status</th><th class="num">Quantidade</th><th class="num">Percentual</th></tr></thead><tbody>
+    ${rows}
+  </tbody></table>`;
+    })
+    .join("\n");
+
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <title>Relatório do Dashboard — Castro Advocacia</title>
 <style>
@@ -81,8 +94,6 @@ function buildReportHtml(d: ReportData): string {
   .kpi{border:1px solid #e3e5e8;border-radius:8px;padding:12px}
   .kpi .l{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#858b99}
   .kpi .v{font-size:24px;font-weight:700;margin-top:4px}
-  .kpi .d{font-size:11px;font-weight:700}
-  .up{color:#508b26}.down{color:#d03e3e}
   table{width:100%;border-collapse:collapse;font-size:13px}
   th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #e3e5e8}
   th{color:#858b99;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
@@ -97,31 +108,18 @@ function buildReportHtml(d: ReportData): string {
   </header>
 
   <section class="kpis">
-    <div class="kpi"><div class="l">Total de clientes</div><div class="v">${c.total}</div><div class="d ${c.deltas.total >= 0 ? "up" : "down"}">${signed(c.deltas.total)}% vs. mês ant.</div></div>
-    <div class="kpi"><div class="l">Ativos</div><div class="v">${c.active}</div><div class="d ${c.deltas.active >= 0 ? "up" : "down"}">${signed(c.deltas.active)}% vs. mês ant.</div></div>
-    <div class="kpi"><div class="l">Inativos</div><div class="v">${c.inactive}</div><div class="d ${c.deltas.inactive <= 0 ? "up" : "down"}">${signed(c.deltas.inactive)}% vs. mês ant.</div></div>
-    <div class="kpi"><div class="l">Pendentes</div><div class="v">${c.pending}</div><div class="d ${c.deltas.pending <= 0 ? "up" : "down"}">${signed(c.deltas.pending)}% vs. mês ant.</div></div>
+    <div class="kpi"><div class="l">Total de clientes</div><div class="v">${c.total}</div></div>
+    <div class="kpi"><div class="l">Ativos</div><div class="v">${c.active}</div></div>
+    <div class="kpi"><div class="l">Inativos</div><div class="v">${c.inactive}</div></div>
+    <div class="kpi"><div class="l">Pendentes</div><div class="v">${c.pending}</div></div>
   </section>
 
-  <h2>Status dos clientes</h2>
-  <table><thead><tr><th>Status</th><th class="num">Quantidade</th><th class="num">Percentual</th></tr></thead><tbody>
-    ${row("Ativos", c.active, pct(c.active, c.total))}
-    ${row("Inativos", c.inactive, pct(c.inactive, c.total))}
-    ${row("Pendentes", c.pending, pct(c.pending, c.total))}
-  </tbody></table>
-
-  <h2>Serviços por status</h2>
-  <table><thead><tr><th>Status</th><th class="num">Quantidade</th><th class="num">Percentual</th></tr></thead><tbody>
-    ${row("Aberto", s.open, pct(s.open, s.total))}
-    ${row("Em atendimento", s.progress, pct(s.progress, s.total))}
-    ${row("Encerrado", s.done, pct(s.done, s.total))}
-  </tbody></table>
+  ${processosHtml}
 
   <footer>Gerado em ${new Date().toLocaleString("pt-BR")} · Castro Advocacia</footer>
 </body></html>`;
 }
 
-/** Imprime o relatório via iframe oculto (evita bloqueio de popup). */
 function printReport(d: ReportData) {
   const iframe = document.createElement("iframe");
   iframe.style.position = "fixed";
@@ -157,7 +155,6 @@ interface ExportReportButtonProps {
   data: ReportData;
 }
 
-/** Botão "Exportar relatório" com menu (PDF/impressão e CSV). */
 export function ExportReportButton({ data }: ExportReportButtonProps) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);

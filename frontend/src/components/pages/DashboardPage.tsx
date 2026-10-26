@@ -1,15 +1,11 @@
-import type { CSSProperties, ReactNode } from "react";
+import { useCallback, type CSSProperties, type ReactNode } from "react";
 import { Clock3, Users, UserCheck, UserX } from "lucide-react";
-import { colors } from "@/theme";
+import { chartPalette } from "@/theme";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { DonutChart } from "@/components/dashboard/DonutChart";
 import { StatusBarChart } from "@/components/dashboard/StatusBarChart";
-
 import { ExportReportButton } from "@/components/dashboard/ExportReportButton";
-import { usePersistentState } from "@/hooks/usePersistentState";
-import { clientStats, clientDeltas } from "@/data/mockDashboard";
-import { mockServices } from "@/data/mockServices";
-import type { Service } from "@/types/entities";
+import { useFetch } from "@/hooks/useFetch";
+import { dashboardApi, type DashboardStats } from "@/lib/api";
 
 const rawDate = new Intl.DateTimeFormat("pt-BR", {
   weekday: "long",
@@ -18,7 +14,6 @@ const rawDate = new Intl.DateTimeFormat("pt-BR", {
 }).format(new Date());
 const dateLabel = rawDate.charAt(0).toUpperCase() + rawDate.slice(1);
 
-/** Atraso de entrada escalonado (fade-in-up) para o i-ésimo elemento. */
 function stagger(index: number): CSSProperties {
   return { animationDelay: `${index * 70}ms` };
 }
@@ -50,22 +45,41 @@ function ChartCard({
   );
 }
 
-/** Dashboard: indicadores de clientes + gráficos de status. */
-export function DashboardPage() {
-  const { total, active, inactive, pending } = clientStats;
+function mapToChartData(record: Record<string, number>) {
+  return Object.entries(record).map(([label, value], i) => ({
+    label,
+    value,
+    color: chartPalette[i % chartPalette.length],
+  }));
+}
 
-  // Lê os serviços persistidos (reflete criações/edições da página Serviços).
-  const [services] = usePersistentState<Service[]>("castro.services", mockServices);
-  const open = services.filter((s) => s.status === "open").length;
-  const progress = services.filter((s) => s.status === "progress").length;
-  const done = services.filter((s) => s.status === "done").length;
+function sumValues(record: Record<string, number>) {
+  return Object.values(record).reduce((a, b) => a + b, 0);
+}
+
+export function DashboardPage() {
+  const { data: stats, loading } = useFetch<DashboardStats>(
+    useCallback(() => dashboardApi.stats(), []),
+  );
+
+  if (loading || !stats) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <p className="text-sm text-gray-400">Carregando dashboard…</p>
+      </div>
+    );
+  }
+
+  const { clients, processos } = stats;
+  const { total, active, inactive, pending } = clients;
+
+  const categoriasEntries = Object.entries(processos);
 
   const kpis = [
     {
       label: "Total de clientes",
       value: total,
       icon: <Users size={18} aria-hidden="true" />,
-      delta: clientDeltas.total,
     },
     {
       label: "Ativos",
@@ -73,7 +87,6 @@ export function DashboardPage() {
       icon: <UserCheck size={18} aria-hidden="true" />,
       accent: "text-status-done",
       accentBg: "bg-status-done/15",
-      delta: clientDeltas.active,
     },
     {
       label: "Inativos",
@@ -81,8 +94,6 @@ export function DashboardPage() {
       icon: <UserX size={18} aria-hidden="true" />,
       accent: "text-gray-400",
       accentBg: "bg-gray-400/15",
-      delta: clientDeltas.inactive,
-      invert: true,
     },
     {
       label: "Pendentes",
@@ -90,8 +101,6 @@ export function DashboardPage() {
       icon: <Clock3 size={18} aria-hidden="true" />,
       accent: "text-status-open",
       accentBg: "bg-status-open/15",
-      delta: clientDeltas.pending,
-      invert: true,
     },
   ];
 
@@ -107,19 +116,8 @@ export function DashboardPage() {
         <ExportReportButton
           data={{
             dateLabel,
-            clients: {
-              total,
-              active,
-              inactive,
-              pending,
-              deltas: clientDeltas,
-            },
-            services: {
-              open,
-              progress,
-              done,
-              total: services.length,
-            },
+            clients: { total, active, inactive, pending },
+            processos,
           }}
         />
       </header>
@@ -134,48 +132,48 @@ export function DashboardPage() {
             icon={kpi.icon}
             accent={kpi.accent}
             accentBg={kpi.accentBg}
-            delta={kpi.delta}
-            invert={kpi.invert}
             className="animate-fade-in-up motion-reduce:animate-none"
             style={stagger(i + 1)}
           />
         ))}
       </div>
 
-      {/* Gráficos */}
-      <div className="grid gap-5 lg:grid-cols-2">
-        <ChartCard
-          title="Status dos clientes"
-          caption={`${total} no total`}
-          style={stagger(5)}
-        >
-          <DonutChart
-            centerValue={total}
-            centerLabel="clientes"
-            ariaLabel={`Distribuição de clientes: ${active} ativos, ${inactive} inativos, ${pending} pendentes`}
-            segments={[
-              { label: "Ativos", value: active, color: colors.status.done },
-              { label: "Inativos", value: inactive, color: colors.gray[400] },
-              { label: "Pendentes", value: pending, color: colors.status.open },
-            ]}
-          />
-        </ChartCard>
-
-        <ChartCard
-          title="Serviços por status"
-          caption={`${services.length} no total`}
-          style={stagger(6)}
-        >
-          <StatusBarChart
-            ariaLabel={`Serviços por status: ${open} abertos, ${progress} em atendimento, ${done} encerrados`}
-            data={[
-              { label: "Aberto", value: open, color: colors.status.open },
-              { label: "Em atendimento", value: progress, color: colors.status.progress },
-              { label: "Encerrado", value: done, color: colors.status.done },
-            ]}
-          />
-        </ChartCard>
-      </div>
+      {/* Gráficos dinâmicos — um por planilha importada */}
+      {categoriasEntries.length > 0 ? (
+        <div className="grid gap-5 lg:grid-cols-2">
+          {categoriasEntries.map(([categoria, statusMap], i) => {
+            const data = mapToChartData(statusMap);
+            const totalCat = sumValues(statusMap);
+            return (
+              <ChartCard
+                key={categoria}
+                title={categoria}
+                caption={`${totalCat} no total`}
+                style={stagger(5 + i)}
+              >
+                {data.length > 0 ? (
+                  <StatusBarChart
+                    ariaLabel={`${categoria}: ${data.map((d) => `${d.value} ${d.label}`).join(", ")}`}
+                    data={data}
+                  />
+                ) : (
+                  <p className="py-4 text-center text-sm text-gray-400">
+                    Sem dados de status
+                  </p>
+                )}
+              </ChartCard>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="grid gap-5 lg:grid-cols-2">
+          <ChartCard title="Processos" style={stagger(5)}>
+            <p className="py-4 text-center text-sm text-gray-400">
+              Nenhuma planilha importada
+            </p>
+          </ChartCard>
+        </div>
+      )}
     </div>
   );
 }

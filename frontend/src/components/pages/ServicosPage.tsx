@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Download, PenLine, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { IconButton } from "@/components/ui/IconButton";
@@ -10,11 +10,10 @@ import {
   ServiceFormModal,
   type ServiceFormValues,
 } from "@/components/servicos/ServiceFormModal";
-import { usePersistentState } from "@/hooks/usePersistentState";
-import { initialsFromName } from "@/lib/initials";
+import { useFetch } from "@/hooks/useFetch";
+import { servicesApi } from "@/lib/api";
 import { formatTotalDisplay } from "@/lib/currency";
 import { SERVICE_STATUS_LABELS, SERVICE_STATUS_OPTIONS } from "@/lib/serviceStatus";
-import { mockServices } from "@/data/mockServices";
 import type { Service, ServiceStatus } from "@/types/entities";
 
 type StatusFilter = "all" | ServiceStatus;
@@ -24,7 +23,6 @@ const FILTERS: { value: StatusFilter; label: string }[] = [
   ...SERVICE_STATUS_OPTIONS,
 ];
 
-/** Gera e baixa um arquivo a partir de texto. */
 function downloadText(filename: string, text: string, mime: string) {
   const blob = new Blob([text], { type: mime });
   const url = URL.createObjectURL(blob);
@@ -37,7 +35,6 @@ function downloadText(filename: string, text: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
-/** Monta o CSV (com BOM, para acentuação correta no Excel) da lista de serviços. */
 function buildServicesCsv(services: Service[]): string {
   const header = [
     "Id",
@@ -63,39 +60,26 @@ function buildServicesCsv(services: Service[]): string {
   return `﻿${body}`;
 }
 
-/** Data/hora atual no formato do Figma: dd/MM/aa HH:mm. */
-function formatNow(): string {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${String(d.getFullYear()).slice(2)} ${p(d.getHours())}:${p(d.getMinutes())}`;
-}
-
-/** Próximo id sequencial no formato "00006". */
-function nextServiceId(services: Service[]): string {
-  const max = services.reduce((m, s) => Math.max(m, Number(s.id) || 0), 0);
-  return String(max + 1).padStart(5, "0");
-}
-
-/** Página Serviços: tabela de chamados com busca, criação e edição (persistida). */
 export function ServicosPage() {
-  const [services, setServices] = usePersistentState<Service[]>(
-    "castro.services",
-    mockServices,
+  const { data: services, loading, refetch } = useFetch<Service[]>(
+    useCallback(() => servicesApi.list(), []),
   );
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Service | null>(null);
 
+  const list = services ?? [];
+
   const counts = useMemo(() => {
-    const c: Partial<Record<StatusFilter, number>> = { all: services.length };
-    for (const s of services) c[s.status] = (c[s.status] ?? 0) + 1;
+    const c: Partial<Record<StatusFilter, number>> = { all: list.length };
+    for (const s of list) c[s.status] = (c[s.status] ?? 0) + 1;
     return c;
-  }, [services]);
+  }, [list]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return services.filter((s) => {
+    return list.filter((s) => {
       if (statusFilter !== "all" && s.status !== statusFilter) return false;
       if (!q) return true;
       return [s.id, s.title, s.service, s.owner.name]
@@ -103,7 +87,7 @@ export function ServicosPage() {
         .toLowerCase()
         .includes(q);
     });
-  }, [services, query, statusFilter]);
+  }, [list, query, statusFilter]);
 
   const handleExport = () => {
     const stamp = new Date().toISOString().slice(0, 10);
@@ -124,44 +108,24 @@ export function ServicosPage() {
     setFormOpen(true);
   };
 
-  const handleSave = (values: ServiceFormValues) => {
-    const owner = {
-      name: values.ownerName,
-      initials: initialsFromName(values.ownerName),
-    };
+  const handleSave = async (values: ServiceFormValues) => {
     if (editing) {
-      setServices((prev) =>
-        prev.map((s) =>
-          s.id === editing.id
-            ? {
-                ...s,
-                title: values.title,
-                service: values.service,
-                total: values.total,
-                owner,
-                status: values.status,
-                updatedAt: formatNow(),
-              }
-            : s,
-        ),
-      );
+      await servicesApi.update(editing.id, values);
     } else {
-      setServices((prev) => [
-        {
-          id: nextServiceId(prev),
-          updatedAt: formatNow(),
-          title: values.title,
-          service: values.service,
-          total: values.total,
-          owner,
-          status: values.status,
-        },
-        ...prev,
-      ]);
+      await servicesApi.create(values);
     }
     setFormOpen(false);
     setEditing(null);
+    refetch();
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <p className="text-sm text-gray-400">Carregando serviços…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="scrollbar-slim flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 pb-6 pt-7 lg:px-12 lg:pb-12 lg:pt-[52px]">
@@ -302,7 +266,7 @@ export function ServicosPage() {
                 <tr>
                   <td colSpan={7} className="px-3 py-10 text-center text-sm text-gray-400">
                     {query
-                      ? `Nenhum serviço encontrado para “${query}”.`
+                      ? `Nenhum serviço encontrado para "${query}".`
                       : statusFilter !== "all"
                         ? "Nenhum serviço com esse status."
                         : "Nenhum serviço cadastrado."}

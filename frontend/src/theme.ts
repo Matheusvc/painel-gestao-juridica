@@ -70,5 +70,17 @@ export const fontSize = {
   xxs: ["0.625rem", { lineHeight: "1.4", letterSpacing: "0.6px", fontWeight: "700" }],
 } as const;
 
+/** Paleta cíclica para gráficos com quantidade dinâmica de categorias. */
+export const chartPalette = [
+  "#5165E1", // blue.base
+  "#508B26", // done
+  "#CC3D6A", // open
+  "#B9770E", // analise
+  "#355EC5", // progress
+  "#8996EB", // blue.light
+  "#D03E3E", // danger
+  "#2E3DA3", // blue.dark
+] as const;
+
 /** Breakpoint único que alterna o layout mobile (top bar) para desktop (sidebar). */
 export const layoutBreakpoint = "lg"; // 1024px

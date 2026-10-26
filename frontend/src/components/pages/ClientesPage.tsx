@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { PenLine, Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { IconButton } from "@/components/ui/IconButton";
@@ -10,18 +10,13 @@ import {
   ClientFormModal,
   type ClientFormValues,
 } from "@/components/clientes/ClientFormModal";
-import { usePersistentState } from "@/hooks/usePersistentState";
-import { initialsFromName } from "@/lib/initials";
-import { createId } from "@/lib/id";
-import { mockClients } from "@/data/mockClients";
+import { useFetch } from "@/hooks/useFetch";
+import { clientsApi } from "@/lib/api";
 import type { Client } from "@/types/entities";
 
-/** Página Clientes: tabela com busca, criação, edição e exclusão (persistida). */
 export function ClientesPage() {
-  // Chave v2: o cliente passou a ter CPF + número do processo (antes era e-mail).
-  const [clients, setClients] = usePersistentState<Client[]>(
-    "castro.clients.v2",
-    mockClients,
+  const { data: clients, loading, refetch } = useFetch<Client[]>(
+    useCallback(() => clientsApi.list(), []),
   );
   const [query, setQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -29,9 +24,10 @@ export function ClientesPage() {
   const [deleting, setDeleting] = useState<Client | null>(null);
 
   const filtered = useMemo(() => {
+    const list = clients ?? [];
     const q = query.trim().toLowerCase();
-    if (!q) return clients;
-    return clients.filter((c) =>
+    if (!q) return list;
+    return list.filter((c) =>
       [c.name, c.cpf, c.processNumber].join(" ").toLowerCase().includes(q),
     );
   }, [clients, query]);
@@ -46,26 +42,31 @@ export function ClientesPage() {
     setFormOpen(true);
   };
 
-  const handleSave = (values: ClientFormValues) => {
-    const initials = initialsFromName(values.name);
+  const handleSave = async (values: ClientFormValues) => {
     if (editing) {
-      setClients((prev) =>
-        prev.map((c) =>
-          c.id === editing.id ? { ...c, ...values, initials } : c,
-        ),
-      );
+      await clientsApi.update(editing.id, values);
     } else {
-      setClients((prev) => [...prev, { id: createId(), ...values, initials }]);
+      await clientsApi.create(values);
     }
     setFormOpen(false);
     setEditing(null);
+    refetch();
   };
 
-  const removeClient = () => {
+  const removeClient = async () => {
     if (!deleting) return;
-    setClients((prev) => prev.filter((c) => c.id !== deleting.id));
+    await clientsApi.remove(deleting.id);
     setDeleting(null);
+    refetch();
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <p className="text-sm text-gray-400">Carregando clientes…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="scrollbar-slim flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 pb-6 pt-7 lg:px-12 lg:pb-12 lg:pt-[52px]">
@@ -100,7 +101,6 @@ export function ClientesPage() {
                 <th scope="col" className="w-[280px] pl-12 pr-3 text-sm font-bold text-gray-400">
                   Número do processo
                 </th>
-                {/* Espaçador flexível: mantém as ações à direita */}
                 <th scope="col" aria-hidden="true" />
                 <th scope="col" className="w-[112px] px-3">
                   <span className="sr-only">Ações</span>
@@ -155,7 +155,7 @@ export function ClientesPage() {
                 <tr>
                   <td colSpan={5} className="px-3 py-10 text-center text-sm text-gray-400">
                     {query
-                      ? `Nenhum cliente encontrado para “${query}”.`
+                      ? `Nenhum cliente encontrado para "${query}".`
                       : "Nenhum cliente cadastrado."}
                   </td>
                 </tr>

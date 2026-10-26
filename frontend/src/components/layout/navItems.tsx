@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Upload } from "lucide-react";
 import { InlineIcon } from "./InlineIcon";
 import dashboardIcon from "@/assets/icon-dashboard.svg?raw";
 import clientesIcon from "@/assets/icon-clientes.svg?raw";
@@ -14,7 +15,7 @@ export interface NavItem {
 
 const iconClass = "size-[22px] [&>svg]:size-[22px]";
 
-/** Links de navegação (Dashboard / Clientes / Serviços). */
+/** Links de navegação (Dashboard / Clientes / Serviços / Importar). */
 export const navItems: NavItem[] = [
   {
     id: "dashboard",
@@ -33,5 +34,11 @@ export const navItems: NavItem[] = [
     label: "Serviços",
     icon: <InlineIcon svg={servicosIcon} className={iconClass} />,
     href: "#servicos",
+  },
+  {
+    id: "importar",
+    label: "Importar",
+    icon: <Upload size={22} />,
+    href: "#importar",
   },
 ];

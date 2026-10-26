@@ -7,6 +7,7 @@ interface DashboardLayoutProps {
   activeId: string;
   onSelect: (id: string) => void;
   user: SidebarUser;
+  onLogout?: () => void;
   children: ReactNode;
 }
 
@@ -21,6 +22,7 @@ export function DashboardLayout({
   activeId,
   onSelect,
   user,
+  onLogout,
   children,
 }: DashboardLayoutProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -102,7 +104,7 @@ export function DashboardLayout({
               </button>
             </div>
             <div className="min-h-0 flex-1">
-              <Sidebar activeId={activeId} onSelect={handleSelect} user={user} />
+              <Sidebar activeId={activeId} onSelect={handleSelect} user={user} onLogout={onLogout} />
             </div>
           </div>
         </div>
