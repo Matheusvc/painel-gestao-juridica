@@ -39,6 +39,12 @@ public class ClienteController {
         return service.atualizar(id, req);
     }
 
+    @DeleteMapping
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removerTodos() {
+        service.removerTodos();
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void excluir(@PathVariable UUID id) {

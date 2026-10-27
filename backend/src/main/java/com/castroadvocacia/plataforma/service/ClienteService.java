@@ -43,6 +43,10 @@ public class ClienteService {
         return toDTO(repo.save(c));
     }
 
+    public void removerTodos() {
+        repo.deleteAll();
+    }
+
     public void excluir(UUID id) {
         if (!repo.existsById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cliente nao encontrado");

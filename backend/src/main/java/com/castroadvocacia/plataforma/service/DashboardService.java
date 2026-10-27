@@ -30,32 +30,37 @@ public class DashboardService {
 
         var servicos = servicoRepo.findAll();
         int totalServicos = servicos.size();
-        int abertos = (int) servicos.stream().filter(s -> s.getStatus() == StatusServico.ABERTO).count();
-        int emAndamento = (int) servicos.stream().filter(s -> s.getStatus() == StatusServico.EM_ANDAMENTO).count();
-        int concluidos = (int) servicos.stream().filter(s -> s.getStatus() == StatusServico.CONCLUIDO).count();
-        int emAnalise = (int) servicos.stream().filter(s -> s.getStatus() == StatusServico.EM_ANALISE).count();
+        int abertos = (int) servicos.stream().filter(s -> "Aberto".equalsIgnoreCase(s.getStatus())).count();
+        int emAndamento = (int) servicos.stream().filter(s -> "Em Atendimento".equalsIgnoreCase(s.getStatus())).count();
+        int concluidos = (int) servicos.stream().filter(s -> "Encerrado".equalsIgnoreCase(s.getStatus())).count();
+        int emAnalise = (int) servicos.stream().filter(s -> "Em Análise".equalsIgnoreCase(s.getStatus())).count();
 
         Map<String, Map<String, Long>> processos = new LinkedHashMap<>();
         for (String categoria : processoRepo.findDistinctCategorias()) {
             var procs = processoRepo.findByCategoria(categoria);
 
-            long distinctAbas = procs.stream()
+            var abasDistintas = procs.stream()
                 .map(Processo::getAba)
                 .filter(a -> a != null && !a.isBlank())
                 .distinct()
-                .count();
+                .toList();
 
-            Map<String, Long> counts;
-            if (distinctAbas > 1) {
-                counts = procs.stream()
-                    .filter(p -> p.getAba() != null && !p.getAba().isBlank())
-                    .collect(Collectors.groupingBy(Processo::getAba, LinkedHashMap::new, Collectors.counting()));
+            if (abasDistintas.size() > 1) {
+                for (String aba : abasDistintas) {
+                    Map<String, Long> counts = procs.stream()
+                        .filter(p -> aba.equals(p.getAba()))
+                        .filter(p -> p.getStatus() != null && !p.getStatus().isBlank())
+                        .collect(Collectors.groupingBy(Processo::getStatus, LinkedHashMap::new, Collectors.counting()));
+                    if (!counts.isEmpty()) {
+                        processos.put(categoria + " — " + aba, counts);
+                    }
+                }
             } else {
-                counts = procs.stream()
+                Map<String, Long> counts = procs.stream()
                     .filter(p -> p.getStatus() != null && !p.getStatus().isBlank())
                     .collect(Collectors.groupingBy(Processo::getStatus, LinkedHashMap::new, Collectors.counting()));
+                processos.put(categoria, counts);
             }
-            processos.put(categoria, counts);
         }
 
         return new DashboardDTO(

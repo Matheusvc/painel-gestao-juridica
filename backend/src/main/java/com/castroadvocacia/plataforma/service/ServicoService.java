@@ -4,7 +4,6 @@ import com.castroadvocacia.plataforma.dto.ResponsavelDTO;
 import com.castroadvocacia.plataforma.dto.ServicoDTO;
 import com.castroadvocacia.plataforma.dto.ServicoRequest;
 import com.castroadvocacia.plataforma.model.Servico;
-import com.castroadvocacia.plataforma.model.StatusServico;
 import com.castroadvocacia.plataforma.repository.ServicoRepository;
 import com.castroadvocacia.plataforma.util.Iniciais;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +31,18 @@ public class ServicoService {
         return repo.findAll().stream().map(this::toDTO).toList();
     }
 
+    public List<ServicoDTO> listarPorCategoria(String categoria) {
+        return repo.findByCategoria(categoria).stream().map(this::toDTO).toList();
+    }
+
+    public List<String> listarCategorias() {
+        return repo.findAll().stream()
+            .map(Servico::getCategoria)
+            .filter(c -> c != null && !c.isBlank())
+            .distinct()
+            .toList();
+    }
+
     public ServicoDTO buscarPorId(UUID id) {
         return toDTO(findOrThrow(id));
     }
@@ -49,8 +60,19 @@ public class ServicoService {
         return toDTO(repo.save(s));
     }
 
-    public long contarPorStatus(StatusServico status) {
-        return repo.findAll().stream().filter(s -> s.getStatus() == status).count();
+    public long contarPorStatus(String status) {
+        return repo.findAll().stream().filter(s -> s.getStatus().equalsIgnoreCase(status)).count();
+    }
+
+    public List<String> listarStatuses() {
+        return repo.findAll().stream()
+            .map(Servico::getStatus)
+            .distinct()
+            .toList();
+    }
+
+    public void removerTodos() {
+        repo.deleteAll();
     }
 
     private void applyRequest(Servico s, ServicoRequest req) {
@@ -58,7 +80,7 @@ public class ServicoService {
         s.setTipoServico(req.service());
         s.setValorTotal(parseTotal(req.total()));
         s.setResponsavel(req.ownerName());
-        s.setStatus(StatusServico.fromFrontendValue(req.status()));
+        s.setStatus(req.status());
     }
 
     private Integer proximoNumero() {
@@ -82,7 +104,8 @@ public class ServicoService {
             s.getTipoServico(),
             formatTotal(s.getValorTotal()),
             new ResponsavelDTO(s.getResponsavel(), Iniciais.fromNome(s.getResponsavel())),
-            s.getStatus().getFrontendValue()
+            s.getStatus(),
+            s.getCategoria()
         );
     }
 

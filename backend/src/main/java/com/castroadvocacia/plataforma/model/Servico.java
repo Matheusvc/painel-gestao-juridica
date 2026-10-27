@@ -35,9 +35,10 @@ public class Servico {
 
     private String responsavel;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private StatusServico status = StatusServico.ABERTO;
+    private String status = "Aberto";
+
+    private String categoria;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime criadoEm = LocalDateTime.now();

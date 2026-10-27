@@ -3,6 +3,7 @@ package com.castroadvocacia.plataforma.service;
 import com.castroadvocacia.plataforma.model.*;
 import com.castroadvocacia.plataforma.repository.ClienteRepository;
 import com.castroadvocacia.plataforma.repository.ProcessoRepository;
+import com.castroadvocacia.plataforma.repository.ServicoRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -12,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.util.*;
 
 @Service
@@ -20,6 +22,7 @@ public class ImportService {
 
     private final ProcessoRepository processoRepo;
     private final ClienteRepository clienteRepo;
+    private final ServicoRepository servicoRepo;
 
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
     private static final byte[] ZIP_MAGIC = {0x50, 0x4B, 0x03, 0x04};
@@ -83,6 +86,27 @@ public class ImportService {
         }
 
         processoRepo.saveAll(processos);
+
+        int proximoNumero = servicoRepo.findAll().stream()
+            .map(Servico::getNumero)
+            .filter(Objects::nonNull)
+            .max(Integer::compareTo)
+            .orElse(0);
+
+        List<Servico> servicos = new ArrayList<>();
+        for (Processo p : processos) {
+            Servico s = new Servico();
+            s.setNumero(++proximoNumero);
+            s.setTitulo(p.getCliente() != null ? p.getCliente() : "Sem título");
+            s.setTipoServico(p.getBeneficio() != null ? p.getBeneficio() : (p.getTipo() != null ? p.getTipo() : categoria));
+            s.setResponsavel(p.getCorretor() != null ? p.getCorretor() : "");
+            s.setStatus(p.getStatus() != null && !p.getStatus().isBlank() ? p.getStatus() : "Aberto");
+            s.setValorTotal(parseValor(p.getValor()));
+            s.setCategoria(categoria);
+            servicos.add(s);
+        }
+        servicoRepo.saveAll(servicos);
+
         return new ImportResult(categoria, processos.size());
     }
 
@@ -93,6 +117,7 @@ public class ImportService {
     @Transactional
     public void removerCategoria(String categoria) {
         processoRepo.deleteByCategoria(categoria);
+        servicoRepo.deleteByCategoria(categoria);
     }
 
     private String derivarCategoria(Workbook wb, String filename) {
@@ -197,6 +222,21 @@ public class ImportService {
             }
         }
         return true;
+    }
+
+    private BigDecimal parseValor(String valor) {
+        if (valor == null || valor.isBlank()) return BigDecimal.ZERO;
+        String clean = valor
+            .replace("R$", "")
+            .replace(" ", "")
+            .replace(".", "")
+            .replace(",", ".")
+            .trim();
+        try {
+            return new BigDecimal(clean);
+        } catch (NumberFormatException e) {
+            return BigDecimal.ZERO;
+        }
     }
 
     private void validarArquivo(MultipartFile file) throws IOException {
