@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
-import { Download, PenLine, Plus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronDown, Download, PenLine, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { IconButton } from "@/components/ui/IconButton";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -13,15 +13,7 @@ import {
 import { useFetch } from "@/hooks/useFetch";
 import { servicesApi } from "@/lib/api";
 import { formatTotalDisplay } from "@/lib/currency";
-import { SERVICE_STATUS_LABELS, SERVICE_STATUS_OPTIONS } from "@/lib/serviceStatus";
-import type { Service, ServiceStatus } from "@/types/entities";
-
-type StatusFilter = "all" | ServiceStatus;
-
-const FILTERS: { value: StatusFilter; label: string }[] = [
-  { value: "all", label: "Geral" },
-  ...SERVICE_STATUS_OPTIONS,
-];
+import type { Service } from "@/types/entities";
 
 function downloadText(filename: string, text: string, mime: string) {
   const blob = new Blob([text], { type: mime });
@@ -52,7 +44,7 @@ function buildServicesCsv(services: Service[]): string {
     s.service,
     formatTotalDisplay(s.total),
     s.owner.name,
-    SERVICE_STATUS_LABELS[s.status],
+    s.status,
   ]);
   const body = [header, ...rows]
     .map((r) => r.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(";"))
@@ -61,21 +53,48 @@ function buildServicesCsv(services: Service[]): string {
 }
 
 export function ServicosPage() {
-  const { data: services, loading, refetch } = useFetch<Service[]>(
-    useCallback(() => servicesApi.list(), []),
+  const [selectedCategoria, setSelectedCategoria] = useState<string>("all");
+
+  const { data: categorias } = useFetch<string[]>(
+    useCallback(() => servicesApi.categorias(), []),
   );
+
+  const fetchServices = useCallback(
+    () => servicesApi.list(selectedCategoria === "all" ? undefined : selectedCategoria),
+    [selectedCategoria],
+  );
+  const { data: services, loading, refetch } = useFetch<Service[]>(fetchServices);
+
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Service | null>(null);
 
+  useEffect(() => {
+    setStatusFilter("all");
+  }, [selectedCategoria]);
+
   const list = services ?? [];
 
-  const counts = useMemo(() => {
-    const c: Partial<Record<StatusFilter, number>> = { all: list.length };
-    for (const s of list) c[s.status] = (c[s.status] ?? 0) + 1;
-    return c;
+  const dynamicStatuses = useMemo(() => {
+    const seen = new Map<string, number>();
+    for (const s of list) {
+      seen.set(s.status, (seen.get(s.status) ?? 0) + 1);
+    }
+    return Array.from(seen.entries()).map(([value, count]) => ({
+      value,
+      label: value,
+      count,
+    }));
   }, [list]);
+
+  const filters = useMemo(
+    () => [
+      { value: "all", label: "Geral", count: list.length },
+      ...dynamicStatuses,
+    ],
+    [dynamicStatuses, list.length],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -130,7 +149,24 @@ export function ServicosPage() {
   return (
     <div className="scrollbar-slim flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 pb-6 pt-7 lg:px-12 lg:pb-12 lg:pt-[52px]">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <PageHeader title="Serviços" />
+        <div className="flex items-center gap-4">
+          <PageHeader title="Serviços" />
+          {categorias && categorias.length > 0 && (
+            <div className="relative">
+              <select
+                value={selectedCategoria}
+                onChange={(e) => setSelectedCategoria(e.target.value)}
+                className="h-9 appearance-none rounded-full border border-gray-500 bg-surface pl-4 pr-9 text-sm font-bold text-gray-200 transition-colors hover:bg-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-base"
+              >
+                <option value="all">Todas as planilhas</option>
+                {categorias.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           <SearchInput
             value={query}
@@ -159,7 +195,7 @@ export function ServicosPage() {
         aria-label="Filtrar serviços por status"
         className="flex flex-wrap items-center gap-2"
       >
-        {FILTERS.map((f) => {
+        {filters.map((f) => {
           const active = statusFilter === f.value;
           return (
             <button
@@ -180,7 +216,7 @@ export function ServicosPage() {
                   active ? "bg-gray-600/25" : "bg-gray-500 text-gray-400"
                 }`}
               >
-                {counts[f.value] ?? 0}
+                {f.count}
               </span>
             </button>
           );
@@ -281,6 +317,7 @@ export function ServicosPage() {
       <ServiceFormModal
         open={formOpen}
         service={editing}
+        statusOptions={dynamicStatuses.map((s) => ({ value: s.value, label: s.label }))}
         onSave={handleSave}
         onClose={() => {
           setFormOpen(false);

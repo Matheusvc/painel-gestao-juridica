@@ -10,12 +10,6 @@ export interface Client {
   processNumber: string;
 }
 
-/**
- * Status de um serviço (Figma: feedback/open, /progress, /done).
- * "analise" não existia no Figma; foi adicionado para o fluxo de triagem.
- */
-export type ServiceStatus = "open" | "progress" | "done" | "analise";
-
 export interface Service {
   /** Id exibido (ex.: "00003"). */
   id: string;
@@ -30,5 +24,6 @@ export interface Service {
     name: string;
     initials: string;
   };
-  status: ServiceStatus;
+  status: string;
+  categoria?: string;
 }

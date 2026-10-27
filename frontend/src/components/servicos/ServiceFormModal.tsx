@@ -4,32 +4,28 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { SelectField } from "@/components/ui/SelectField";
 import { maskCurrencyInput } from "@/lib/currency";
-import { SERVICE_STATUS_OPTIONS } from "@/lib/serviceStatus";
-import type { Service, ServiceStatus } from "@/types/entities";
+import type { Service } from "@/types/entities";
 
-/** Valores editáveis de um serviço. */
 export interface ServiceFormValues {
   title: string;
   service: string;
   total: string;
   ownerName: string;
-  status: ServiceStatus;
+  status: string;
 }
 
 interface ServiceFormModalProps {
   open: boolean;
-  /** Serviço em edição; `null` cria um novo. */
   service: Service | null;
+  statusOptions: { value: string; label: string }[];
   onSave: (values: ServiceFormValues) => void;
   onClose: () => void;
 }
 
-const statusOptions = SERVICE_STATUS_OPTIONS;
-
-/** Formulário de criação/edição de serviço. */
 export function ServiceFormModal({
   open,
   service,
+  statusOptions,
   onSave,
   onClose,
 }: ServiceFormModalProps) {
@@ -37,7 +33,7 @@ export function ServiceFormModal({
   const [serviceName, setServiceName] = useState("");
   const [total, setTotal] = useState("");
   const [owner, setOwner] = useState("");
-  const [status, setStatus] = useState<ServiceStatus>("open");
+  const [status, setStatus] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -45,8 +41,8 @@ export function ServiceFormModal({
     setServiceName(service?.service ?? "");
     setTotal(maskCurrencyInput(service?.total ?? ""));
     setOwner(service?.owner.name ?? "");
-    setStatus(service?.status ?? "open");
-  }, [open, service]);
+    setStatus(service?.status ?? statusOptions[0]?.value ?? "Aberto");
+  }, [open, service, statusOptions]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -81,7 +77,7 @@ export function ServiceFormModal({
         <SelectField
           label="Status"
           value={status}
-          onChange={(v) => setStatus(v as ServiceStatus)}
+          onChange={setStatus}
           options={statusOptions}
         />
         <div className="mt-2 flex justify-end gap-2">

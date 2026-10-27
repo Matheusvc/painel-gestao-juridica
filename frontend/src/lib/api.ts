@@ -42,6 +42,7 @@ export const clientsApi = {
     request<Client>(`/clients/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   remove: (id: string) =>
     request<void>(`/clients/${id}`, { method: "DELETE" }),
+  removeAll: () => request<void>("/clients", { method: "DELETE" }),
 };
 
 // ---- Services ----
@@ -49,11 +50,14 @@ export const clientsApi = {
 import type { Service } from "@/types/entities";
 
 export const servicesApi = {
-  list: () => request<Service[]>("/services"),
+  list: (categoria?: string) =>
+    request<Service[]>(categoria ? `/services?categoria=${encodeURIComponent(categoria)}` : "/services"),
+  categorias: () => request<string[]>("/services/categorias"),
   create: (data: { title: string; service: string; total: string; ownerName: string; status: string }) =>
     request<Service>("/services", { method: "POST", body: JSON.stringify(data) }),
   update: (id: string, data: { title: string; service: string; total: string; ownerName: string; status: string }) =>
     request<Service>(`/services/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  removeAll: () => request<void>("/services", { method: "DELETE" }),
 };
 
 // ---- Dashboard ----

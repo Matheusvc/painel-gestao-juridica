@@ -7,7 +7,7 @@ import {
   Loader2,
   Trash2,
 } from "lucide-react";
-import { importApi } from "@/lib/api";
+import { clientsApi, importApi, servicesApi } from "@/lib/api";
 import { useFetch } from "@/hooks/useFetch";
 
 interface UploadResult {
@@ -76,16 +76,34 @@ export function ImportarPage() {
     [refetch],
   );
 
+  const handleRemoveAll = useCallback(async () => {
+    if (!confirm("Deseja retirar todos os dados (clientes, serviços e dashboard)?")) return;
+    await Promise.all([
+      servicesApi.removeAll(),
+      clientsApi.removeAll(),
+    ]);
+  }, []);
+
   return (
     <div className="scrollbar-slim flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto px-6 pb-8 pt-7 lg:px-12 lg:pb-12 lg:pt-[52px]">
-      <header className="flex animate-fade-in-up flex-col gap-1 motion-reduce:animate-none">
-        <h1 className="text-2xl font-bold leading-tight text-gray-100">
-          Importar Planilhas
-        </h1>
-        <p className="text-sm text-gray-400">
-          Envie qualquer planilha .xlsx — o gráfico será gerado automaticamente
-          com o título da planilha
-        </p>
+      <header className="flex animate-fade-in-up items-start justify-between gap-4 motion-reduce:animate-none">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold leading-tight text-gray-100">
+            Importar Planilhas
+          </h1>
+          <p className="text-sm text-gray-400">
+            Envie qualquer planilha .xlsx — o gráfico será gerado automaticamente
+            com o título da planilha
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleRemoveAll}
+          className="inline-flex h-10 shrink-0 items-center gap-2 rounded-sm bg-danger/15 px-4 text-sm font-bold text-danger transition-colors hover:bg-danger/25"
+        >
+          <Trash2 size={16} />
+          Retirar Dados
+        </button>
       </header>
 
       {/* Upload area */}
@@ -203,6 +221,7 @@ export function ImportarPage() {
           </div>
         </section>
       )}
+
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useCallback, useState, type FormEvent } from "react";
-import { AlertCircle, Loader2, Menu } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, Loader2, Menu } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 export function LoginPage() {
@@ -8,6 +8,7 @@ export function LoginPage() {
   const [senha, setSenha] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = useCallback(
     async (e: FormEvent) => {
@@ -95,21 +96,31 @@ export function LoginPage() {
               />
             </div>
 
-            {/* Password */}
+            {/* Senha */}
             <div className="flex flex-col gap-1.5">
               <label htmlFor="login-senha" className="text-sm font-semibold text-[#1a1a1a]">
-                Password
+                Senha
               </label>
-              <input
-                id="login-senha"
-                type="password"
-                required
-                autoComplete="current-password"
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                placeholder="*************"
-                className="h-12 w-full rounded-lg border border-[#d1d5db] bg-white px-4 text-sm text-[#1a1a1a] placeholder:text-[#9ca3af] focus:border-[#1a1a1a] focus:outline-none focus:ring-1 focus:ring-[#1a1a1a]"
-              />
+              <div className="relative">
+                <input
+                  id="login-senha"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  autoComplete="current-password"
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  placeholder="*************"
+                  className="h-12 w-full rounded-lg border border-[#d1d5db] bg-white px-4 pr-12 text-sm text-[#1a1a1a] placeholder:text-[#9ca3af] focus:border-[#1a1a1a] focus:outline-none focus:ring-1 focus:ring-[#1a1a1a]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af] transition-colors hover:text-[#1a1a1a]"
+                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
             </div>
 
             {/* Remember / Recover */}
@@ -146,7 +157,7 @@ export function LoginPage() {
                   Entrando…
                 </>
               ) : (
-                "Sign in"
+                "Entrar"
               )}
             </button>
           </form>
