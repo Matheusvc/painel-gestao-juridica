@@ -8,6 +8,7 @@ interface DashboardLayoutProps {
   onSelect: (id: string) => void;
   user: SidebarUser;
   onLogout?: () => void;
+  onProfileClick?: () => void;
   children: ReactNode;
 }
 
@@ -23,6 +24,7 @@ export function DashboardLayout({
   onSelect,
   user,
   onLogout,
+  onProfileClick,
   children,
 }: DashboardLayoutProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -59,11 +61,12 @@ export function DashboardLayout({
   );
 
   return (
-    <div className="flex h-dvh min-h-dvh w-full flex-col overflow-hidden bg-gray-100">
-      {/* Barra superior (sempre) */}
-      <div ref={topBarRef} className="shrink-0">
+    <div className="flex h-dvh min-h-dvh w-full flex-col overflow-hidden" style={{ backgroundColor: '#151619' }}>
+      {/* Barra superior (sempre escura) */}
+      <div ref={topBarRef} className="always-dark shrink-0">
         <MobileTopBar
           userInitials={user.initials}
+          userPhotoUrl={user.photoUrl}
           onOpenMenu={() => setDrawerOpen(true)}
           menuOpen={drawerOpen}
           menuId={drawerId}
@@ -90,7 +93,7 @@ export function DashboardLayout({
             role="dialog"
             aria-modal="true"
             aria-label="Menu de navegação"
-            className="absolute inset-y-0 left-0 flex h-full w-[300px] max-w-[85vw] flex-col bg-gray-100 shadow-2xl"
+            className="sidebar-dark absolute inset-y-0 left-0 flex h-full w-[300px] max-w-[85vw] flex-col bg-gray-100 shadow-2xl"
           >
             <div className="flex justify-end px-3 pt-3">
               <button
@@ -104,7 +107,7 @@ export function DashboardLayout({
               </button>
             </div>
             <div className="min-h-0 flex-1">
-              <Sidebar activeId={activeId} onSelect={handleSelect} user={user} onLogout={onLogout} />
+              <Sidebar activeId={activeId} onSelect={handleSelect} user={user} onLogout={onLogout} onProfileClick={() => { closeDrawer(); onProfileClick?.(); }} />
             </div>
           </div>
         </div>

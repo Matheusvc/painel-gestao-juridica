@@ -6,11 +6,15 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { BASE } from "@/lib/api";
 
-interface User {
+export interface User {
   nome: string;
+  sobrenome: string;
   email: string;
   perfil: string;
+  cargo: string;
+  fotoUrl: string;
 }
 
 interface AuthContextType {
@@ -18,11 +22,11 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, senha: string) => Promise<void>;
   logout: () => void;
+  updateProfile: (data: Partial<User>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const BASE = "http://localhost:8080/api";
 const TOKEN_KEY = "castro_token";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -47,7 +51,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!res.ok) throw new Error();
         return res.json();
       })
-      .then((data: User) => setUser(data))
+      .then((data) => setUser({
+        nome: data.nome ?? "",
+        sobrenome: data.sobrenome ?? "",
+        email: data.email ?? "",
+        perfil: data.perfil ?? "",
+        cargo: data.cargo ?? "",
+        fotoUrl: data.fotoUrl ?? "",
+      }))
       .catch(() => {
         localStorage.removeItem(TOKEN_KEY);
       })
@@ -65,11 +76,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(data.error || "Erro ao fazer login");
     }
     localStorage.setItem(TOKEN_KEY, data.token);
-    setUser({ nome: data.nome, email: data.email, perfil: data.perfil });
+    setUser({
+      nome: data.nome,
+      sobrenome: data.sobrenome ?? "",
+      email: data.email,
+      perfil: data.perfil,
+      cargo: data.cargo ?? "",
+      fotoUrl: data.fotoUrl ?? "",
+    });
+  }, []);
+
+  const updateProfile = useCallback(async (data: Partial<User>) => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    const res = await fetch(`${BASE}/auth/profile`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Erro ao atualizar perfil");
+    const updated = await res.json();
+    setUser((prev) => prev ? { ...prev, ...updated } : prev);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

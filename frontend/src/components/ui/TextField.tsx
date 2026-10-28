@@ -24,7 +24,7 @@ export function TextField({
   const id = useId();
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-bold text-gray-200">
+      <label htmlFor={id} className="text-sm font-bold text-gray-100">
         {label}
         {required && <span className="text-danger"> *</span>}
       </label>

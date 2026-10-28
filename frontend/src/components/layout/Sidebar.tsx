@@ -7,6 +7,7 @@ export interface SidebarUser {
   name: string;
   email: string;
   initials: string;
+  photoUrl?: string;
 }
 
 interface SidebarProps {
@@ -14,6 +15,7 @@ interface SidebarProps {
   onSelect: (id: string) => void;
   user: SidebarUser;
   onLogout?: () => void;
+  onProfileClick?: () => void;
   navLabel?: string;
 }
 
@@ -23,6 +25,7 @@ export function Sidebar({
   onSelect,
   user,
   onLogout,
+  onProfileClick,
   navLabel = "Navegação principal",
 }: SidebarProps) {
   return (
@@ -44,7 +47,7 @@ export function Sidebar({
         </ul>
       </nav>
 
-      <UserCard name={user.name} email={user.email} initials={user.initials} onLogout={onLogout} />
+      <UserCard name={user.name} email={user.email} initials={user.initials} photoUrl={user.photoUrl} onLogout={onLogout} onProfileClick={onProfileClick} />
     </div>
   );
 }

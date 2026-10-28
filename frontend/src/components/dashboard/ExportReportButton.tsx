@@ -16,6 +16,12 @@ export interface ReportData {
 const pct = (value: number, total: number) =>
   total > 0 ? `${Math.round((value / total) * 100)}%` : "0%";
 
+function escapeHtml(value: string | number): string {
+  return String(value).replace(/[&<>"']/g, (ch) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] ?? ch,
+  );
+}
+
 function downloadText(filename: string, text: string, mime: string) {
   const blob = new Blob([text], { type: mime });
   const url = URL.createObjectURL(blob);
@@ -62,7 +68,7 @@ function buildCsv(d: ReportData): string {
 function buildReportHtml(d: ReportData): string {
   const { clients: c, processos } = d;
   const row = (label: string, value: string | number, extra: string) =>
-    `<tr><td>${label}</td><td class="num">${value}</td><td class="num muted">${extra}</td></tr>`;
+    `<tr><td>${escapeHtml(label)}</td><td class="num">${value}</td><td class="num muted">${extra}</td></tr>`;
 
   const processosHtml = Object.entries(processos)
     .map(([categoria, statusMap]) => {
@@ -71,7 +77,7 @@ function buildReportHtml(d: ReportData): string {
         .map(([label, value]) => row(label, value, pct(value, totalCat)))
         .join("\n    ");
       return `
-  <h2>${categoria}</h2>
+  <h2>${escapeHtml(categoria)}</h2>
   <table><thead><tr><th>Status</th><th class="num">Quantidade</th><th class="num">Percentual</th></tr></thead><tbody>
     ${rows}
   </tbody></table>`;
@@ -199,7 +205,7 @@ export function ExportReportButton({ data }: ExportReportButtonProps) {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="inline-flex h-10 items-center gap-2 rounded-sm bg-blue-base px-4 text-sm font-bold text-gray-600 transition-colors hover:bg-blue-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-base focus-visible:ring-offset-2"
+        className="inline-flex h-10 items-center gap-2 rounded-sm bg-blue-base px-4 text-sm font-bold text-white transition-colors hover:bg-blue-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-base focus-visible:ring-offset-2"
       >
         <Download size={16} aria-hidden="true" />
         Exportar relatório
@@ -215,7 +221,7 @@ export function ExportReportButton({ data }: ExportReportButtonProps) {
             type="button"
             role="menuitem"
             onClick={handlePrint}
-            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-200 transition-colors hover:bg-gray-600 focus-visible:bg-gray-600 focus-visible:outline-none"
+            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-100 transition-colors hover:bg-gray-600 focus-visible:bg-gray-600 focus-visible:outline-none"
           >
             <Printer size={16} aria-hidden="true" className="text-gray-400" />
             Imprimir / Salvar PDF
@@ -225,7 +231,7 @@ export function ExportReportButton({ data }: ExportReportButtonProps) {
             role="menuitem"
             onClick={handleCsv}
             className={cn(
-              "flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-200 transition-colors",
+              "flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-100 transition-colors",
               "hover:bg-gray-600 focus-visible:bg-gray-600 focus-visible:outline-none",
             )}
           >

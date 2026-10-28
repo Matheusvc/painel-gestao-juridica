@@ -21,11 +21,11 @@ export const colors = {
     60: "#FCDDEC", // fuschia/60 — texto/ícone de link inativo na sidebar
   },
   gray: {
-    100: "#151619", // grayscale/gray-100 — fundo da sidebar / texto primário claro
-    200: "#1E2024", // grayscale/gray-200 — bordas, botão hambúrguer
-    400: "#858B99", // grayscale/gray-400 — texto secundário/mudo, cabeçalho de tabela
-    500: "#E3E5E8", // grayscale/gray-500 — bordas de tabela, botões de ação
-    600: "#F9FAFA", // grayscale/gray-600 — fundo do conteúdo / texto sobre escuro
+    100: "var(--c-gray-100)", // grayscale/gray-100 — texto primário / fundo sidebar
+    200: "var(--c-gray-200)", // grayscale/gray-200 — bordas, botão hambúrguer
+    400: "var(--c-gray-400)", // grayscale/gray-400 — texto secundário/mudo
+    500: "var(--c-gray-500)", // grayscale/gray-500 — bordas de tabela
+    600: "var(--c-gray-600)", // grayscale/gray-600 — fundo do conteúdo / texto sobre escuro
   },
 
   // Cores de feedback/status (Figma — página Serviços)
@@ -38,8 +38,8 @@ export const colors = {
   },
 
   // --- Assumidos (não existiam no Figma) para a superfície clara do chat ---
-  surface: "#FFFFFF", // balão recebido, campo de input
-  borderLight: "#E6E8EC", // bordas sobre fundo claro
+  surface: "var(--c-surface)", // balão recebido, campo de input
+  borderLight: "var(--c-border-light)", // bordas sobre fundo claro
   bubbleReceived: "#FFFFFF",
   bubbleSent: "#5165E1", // = blue.base
 } as const;
@@ -81,6 +81,7 @@ export const chartPalette = [
   "#D03E3E", // danger
   "#2E3DA3", // blue.dark
 ] as const;
+
 
 /** Breakpoint único que alterna o layout mobile (top bar) para desktop (sidebar). */
 export const layoutBreakpoint = "lg"; // 1024px

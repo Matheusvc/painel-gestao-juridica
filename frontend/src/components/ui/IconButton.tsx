@@ -26,7 +26,7 @@ export function IconButton({
       title={label}
       className={cn(
         "inline-flex size-7 shrink-0 items-center justify-center rounded-sm bg-gray-500 transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-base focus-visible:ring-offset-1",
-        tone === "danger" ? "text-danger" : "text-gray-200",
+        tone === "danger" ? "text-danger" : "text-gray-100",
         className,
       )}
     >

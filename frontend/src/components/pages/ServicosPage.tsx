@@ -156,7 +156,7 @@ export function ServicosPage() {
               <select
                 value={selectedCategoria}
                 onChange={(e) => setSelectedCategoria(e.target.value)}
-                className="h-9 appearance-none rounded-full border border-gray-500 bg-surface pl-4 pr-9 text-sm font-bold text-gray-200 transition-colors hover:bg-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-base"
+                className="h-9 appearance-none rounded-full border border-gray-500 bg-surface pl-4 pr-9 text-sm font-bold text-gray-100 transition-colors hover:bg-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-base"
               >
                 <option value="all">Todas as planilhas</option>
                 {categorias.map((cat) => (
@@ -206,8 +206,8 @@ export function ServicosPage() {
               onClick={() => setStatusFilter(f.value)}
               className={`inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-base focus-visible:ring-offset-1 ${
                 active
-                  ? "bg-blue-base text-gray-600"
-                  : "border border-gray-500 text-gray-200 hover:bg-gray-600"
+                  ? "bg-blue-base text-white"
+                  : "border border-gray-500 text-gray-100 hover:bg-gray-600"
               }`}
             >
               {f.label.toUpperCase()}
@@ -258,27 +258,27 @@ export function ServicosPage() {
                   key={service.id}
                   className="h-16 border-b border-gray-500 transition-colors last:border-b-0 hover:bg-gray-600"
                 >
-                  <td className="whitespace-nowrap px-3 align-middle text-sm text-gray-200">
+                  <td className="whitespace-nowrap px-3 align-middle text-sm text-gray-100">
                     {service.updatedAt}
                   </td>
-                  <td className="px-3 align-middle text-sm font-bold text-gray-200">
+                  <td className="px-3 align-middle text-sm font-bold text-gray-100">
                     {service.id}
                   </td>
                   <td className="px-3 align-middle">
-                    <span className="block truncate text-sm font-bold text-gray-200">
+                    <span className="block truncate text-sm font-bold text-gray-100">
                       {service.title}
                     </span>
-                    <span className="block truncate text-xs text-gray-200">
+                    <span className="block truncate text-xs text-gray-100">
                       {service.service}
                     </span>
                   </td>
-                  <td className="whitespace-nowrap px-3 align-middle text-sm font-bold tabular-nums text-gray-200">
+                  <td className="whitespace-nowrap px-3 align-middle text-sm font-bold tabular-nums text-gray-100">
                     {formatTotalDisplay(service.total)}
                   </td>
                   <td className="px-3 align-middle">
                     <div className="flex items-center gap-2">
                       <Avatar initials={service.owner.initials} size="xxs" />
-                      <span className="truncate text-sm text-gray-200">
+                      <span className="truncate text-sm text-gray-100">
                         {service.owner.name}
                       </span>
                     </div>

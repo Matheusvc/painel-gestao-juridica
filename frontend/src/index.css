@@ -15,11 +15,45 @@
   --c-blue-dark: #2e3da3;
   --c-fuschia-60: #fcddec;
   --c-gray-100: #151619;
-  --c-gray-200: #1e2024;
-  --c-gray-400: #858b99;
-  --c-gray-600: #f9fafa;
+  --c-gray-200: #e3e5e8;
+  --c-gray-400: #6b7280;
+  --c-gray-500: #d1d5db;
+  --c-gray-600: #f5f6f8;
   --c-surface: #ffffff;
   --c-border-light: #e6e8ec;
+}
+
+/* Modo escuro — afeta a página inteira */
+[data-theme="dark"] {
+  --c-gray-100: #ecedf0;
+  --c-gray-200: #2a2d33;
+  --c-gray-400: #8b929e;
+  --c-gray-500: #2e3138;
+  --c-gray-600: #111318;
+  --c-surface: #1c1f26;
+  --c-border-light: #2e3138;
+}
+
+/* Topbar e moldura sempre escuros */
+.always-dark {
+  --c-gray-100: #ecedf0;
+  --c-gray-200: #2a2d33;
+  --c-gray-400: #8b929e;
+  --c-gray-500: #2e3138;
+  --c-gray-600: #111318;
+  --c-surface: #1c1f26;
+  --c-border-light: #2e3138;
+}
+
+/* Sidebar e drawer sempre escuros */
+.sidebar-dark {
+  --c-gray-100: #151619;
+  --c-gray-200: #1e2024;
+  --c-gray-400: #858b99;
+  --c-gray-500: #2e3138;
+  --c-gray-600: #f9fafa;
+  --c-surface: #1c1f26;
+  --c-border-light: #2e3138;
 }
 
 html,
@@ -50,7 +84,7 @@ body {
   font-family: "Lato", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--c-gray-100);
+  background-color: var(--c-gray-600);
   color: var(--c-gray-100);
 }
 

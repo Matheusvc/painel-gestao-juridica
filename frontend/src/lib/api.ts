@@ -1,4 +1,4 @@
-const BASE = "http://localhost:8080/api";
+export const BASE = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 const TOKEN_KEY = "castro_token";
 
 function getToken(): string | null {
@@ -66,6 +66,11 @@ export interface DashboardStats {
   clients: { total: number; active: number; inactive: number; pending: number };
   services: { total: number; open: number; progress: number; done: number; analise: number };
   processos: Record<string, Record<string, number>>;
+  corretores: Record<string, number>;
+  servicosPorStatus: Record<string, number>;
+  totalRecebido: number;
+  totalAReceber: number;
+  encerrados: number;
 }
 
 export const dashboardApi = {

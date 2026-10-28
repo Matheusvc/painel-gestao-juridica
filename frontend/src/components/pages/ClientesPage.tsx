@@ -116,18 +116,18 @@ export function ClientesPage() {
                   <td className="px-3">
                     <div className="flex items-center gap-3">
                       <Avatar initials={client.initials} size="xs" />
-                      <span className="truncate text-sm font-bold text-gray-200">
+                      <span className="truncate text-sm font-bold text-gray-100">
                         {client.name}
                       </span>
                     </div>
                   </td>
                   <td className="px-3">
-                    <span className="truncate text-sm tabular-nums text-gray-200">
+                    <span className="truncate text-sm tabular-nums text-gray-100">
                       {client.cpf}
                     </span>
                   </td>
                   <td className="pl-12 pr-3">
-                    <span className="truncate text-sm tabular-nums text-gray-200">
+                    <span className="truncate text-sm tabular-nums text-gray-100">
                       {client.processNumber}
                     </span>
                   </td>

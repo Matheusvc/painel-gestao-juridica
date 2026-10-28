@@ -5,6 +5,8 @@ type AvatarSize = "xxs" | "xs" | "sm" | "md";
 interface AvatarProps {
   initials: string;
   size?: AvatarSize;
+  /** URL da foto de perfil. Quando presente, exibe a foto em vez das iniciais. */
+  src?: string;
   /** Indicador de presença (ponto verde). */
   online?: boolean;
   className?: string;
@@ -18,18 +20,27 @@ const sizeMap: Record<AvatarSize, string> = {
 };
 
 /** Avatar circular com iniciais. Fundo blue/dark do Figma. */
-export function Avatar({ initials, size = "sm", online, className }: AvatarProps) {
+export function Avatar({ initials, size = "sm", src, online, className }: AvatarProps) {
   return (
     <span className={cn("relative inline-flex shrink-0", className)}>
-      <span
-        className={cn(
-          "inline-flex items-center justify-center rounded-full bg-blue-dark font-bold uppercase text-gray-600",
-          sizeMap[size],
-        )}
-        aria-hidden="true"
-      >
-        {initials}
-      </span>
+      {src ? (
+        <img
+          src={src}
+          alt=""
+          aria-hidden="true"
+          className={cn("rounded-full object-cover", sizeMap[size])}
+        />
+      ) : (
+        <span
+          className={cn(
+            "inline-flex items-center justify-center rounded-full bg-blue-dark font-bold uppercase text-white",
+            sizeMap[size],
+          )}
+          aria-hidden="true"
+        >
+          {initials}
+        </span>
+      )}
       {online !== undefined && (
         <span
           className={cn(

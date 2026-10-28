@@ -145,7 +145,7 @@ export function ImportarPage() {
           type="button"
           disabled={loading}
           onClick={() => inputRef.current?.click()}
-          className="inline-flex h-10 items-center gap-2 rounded-sm bg-blue-base px-5 text-sm font-bold text-gray-600 transition-colors hover:bg-blue-dark disabled:opacity-60"
+          className="inline-flex h-10 items-center gap-2 rounded-sm bg-blue-base px-5 text-sm font-bold text-white transition-colors hover:bg-blue-dark disabled:opacity-60"
         >
           {loading ? (
             <>
@@ -204,7 +204,7 @@ export function ImportarPage() {
               >
                 <div className="flex items-center gap-3">
                   <FileSpreadsheet size={18} className="text-blue-base" />
-                  <span className="text-sm font-medium text-gray-200">
+                  <span className="text-sm font-medium text-gray-100">
                     {cat}
                   </span>
                 </div>

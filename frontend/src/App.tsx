@@ -4,11 +4,13 @@ import { DashboardPage } from "@/components/pages/DashboardPage";
 import { ClientesPage } from "@/components/pages/ClientesPage";
 import { ServicosPage } from "@/components/pages/ServicosPage";
 import { ImportarPage } from "@/components/pages/ImportarPage";
+import { PerfilPage } from "@/components/pages/PerfilPage";
 import { LoginPage } from "@/components/pages/LoginPage";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import { useHashRoute } from "@/hooks/useHashRoute";
 
-const ROUTES = ["dashboard", "clientes", "servicos", "importar", "login"] as const;
+const ROUTES = ["dashboard", "clientes", "servicos", "importar", "perfil", "login"] as const;
 type Route = (typeof ROUTES)[number];
 
 const PAGES: Record<Exclude<Route, "login">, ReactNode> = {
@@ -16,6 +18,7 @@ const PAGES: Record<Exclude<Route, "login">, ReactNode> = {
   clientes: <ClientesPage />,
   servicos: <ServicosPage />,
   importar: <ImportarPage />,
+  perfil: <PerfilPage />,
 };
 
 function AppContent() {
@@ -24,7 +27,7 @@ function AppContent() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-app">
+      <div className="flex min-h-screen items-center justify-center bg-gray-100">
         <p className="text-sm text-gray-400">Carregando…</p>
       </div>
     );
@@ -45,10 +48,11 @@ function AppContent() {
 
   return (
     <DashboardLayout
-      activeId={route === "login" ? "dashboard" : route}
+      activeId={route}
       onSelect={(id) => navigate(id as Route)}
-      user={{ name: user.nome, email: user.email, initials }}
+      user={{ name: user.nome, email: user.email, initials, photoUrl: user.fotoUrl || undefined }}
       onLogout={logout}
+      onProfileClick={() => navigate("perfil")}
     >
       {PAGES[route as Exclude<Route, "login">] ?? <DashboardPage />}
     </DashboardLayout>
@@ -57,8 +61,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
