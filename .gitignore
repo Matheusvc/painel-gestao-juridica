@@ -8,11 +8,13 @@ frontend/.vite
 # === Build artifacts (raiz) ===
 dist/
 
+# === IDE ===
+.idea/
+*.iml
+
 # === Backend ===
 backend/target
 backend/.mvn/wrapper/maven-wrapper.jar
-backend/*.iml
-backend/.idea
 backend/*.class
 
 # === Claude Code (config local com credenciais de teste) ===
