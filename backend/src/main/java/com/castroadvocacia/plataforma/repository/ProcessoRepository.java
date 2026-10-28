@@ -15,4 +15,7 @@ public interface ProcessoRepository extends JpaRepository<Processo, UUID> {
 
     @Query("SELECT DISTINCT p.categoria FROM Processo p ORDER BY p.categoria")
     List<String> findDistinctCategorias();
+
+    @Query("SELECT p.corretor, COUNT(DISTINCT p.cliente) FROM Processo p WHERE p.corretor IS NOT NULL AND p.corretor <> '' GROUP BY p.corretor ORDER BY COUNT(DISTINCT p.cliente) DESC")
+    List<Object[]> countClientesPorCorretor();
 }

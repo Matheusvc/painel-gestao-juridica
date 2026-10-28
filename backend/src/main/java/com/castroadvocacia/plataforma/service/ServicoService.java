@@ -60,10 +60,6 @@ public class ServicoService {
         return toDTO(repo.save(s));
     }
 
-    public long contarPorStatus(String status) {
-        return repo.findAll().stream().filter(s -> s.getStatus().equalsIgnoreCase(status)).count();
-    }
-
     public List<String> listarStatuses() {
         return repo.findAll().stream()
             .map(Servico::getStatus)

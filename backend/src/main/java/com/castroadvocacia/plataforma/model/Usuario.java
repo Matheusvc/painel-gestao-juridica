@@ -34,6 +34,13 @@ public class Usuario {
     @Column(nullable = false)
     private String senha;
 
+    private String sobrenome;
+
+    private String cargo;
+
+    @Lob
+    private String fotoUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Perfil perfil = Perfil.ATENDENTE;

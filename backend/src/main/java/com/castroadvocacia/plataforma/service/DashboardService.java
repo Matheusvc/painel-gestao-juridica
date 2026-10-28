@@ -9,6 +9,7 @@ import com.castroadvocacia.plataforma.repository.ServicoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -20,6 +21,22 @@ public class DashboardService {
     private final ClienteRepository clienteRepo;
     private final ServicoRepository servicoRepo;
     private final ProcessoRepository processoRepo;
+
+    private BigDecimal parseValor(String valor) {
+        if (valor == null || valor.isBlank()) return BigDecimal.ZERO;
+        String clean = valor
+            .replace("R$", "")
+            .replace(" ", "")
+            .trim();
+        if (clean.contains(",")) {
+            clean = clean.replace(".", "").replace(",", ".");
+        }
+        try {
+            return new BigDecimal(clean);
+        } catch (NumberFormatException e) {
+            return BigDecimal.ZERO;
+        }
+    }
 
     public DashboardDTO obterEstatisticas() {
         var clientes = clienteRepo.findAll();
@@ -63,10 +80,51 @@ public class DashboardService {
             }
         }
 
+        Map<String, Long> corretores = new LinkedHashMap<>();
+        for (Object[] row : processoRepo.countClientesPorCorretor()) {
+            corretores.put((String) row[0], (Long) row[1]);
+        }
+
+        Map<String, Long> servicosPorStatus = servicos.stream()
+            .filter(s -> s.getStatus() != null && !s.getStatus().isBlank())
+            .collect(Collectors.groupingBy(
+                Servico::getStatus,
+                LinkedHashMap::new,
+                Collectors.counting()
+            ))
+            .entrySet().stream()
+            .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a, LinkedHashMap::new));
+
+        var todosProcessos = processoRepo.findAll();
+
+        BigDecimal totalRecebido = todosProcessos.stream()
+            .filter(p -> "RECEBIDA".equalsIgnoreCase(p.getStatus())
+                      || "RECEBIDO".equalsIgnoreCase(p.getStatus()))
+            .map(p -> parseValor(p.getValor()))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalAReceber = todosProcessos.stream()
+            .filter(p -> !"RECEBIDA".equalsIgnoreCase(p.getStatus())
+                      && !"RECEBIDO".equalsIgnoreCase(p.getStatus()))
+            .filter(p -> p.getValor() != null && !p.getValor().isBlank())
+            .map(p -> parseValor(p.getValor()))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        int encerrados = (int) todosProcessos.stream()
+            .filter(p -> "RECEBIDA".equalsIgnoreCase(p.getStatus())
+                      || "RECEBIDO".equalsIgnoreCase(p.getStatus()))
+            .count();
+
         return new DashboardDTO(
             new ClienteStatsDTO(totalClientes, ativos, inativos, pendentes),
             new ServicoStatsDTO(totalServicos, abertos, emAndamento, concluidos, emAnalise),
-            processos
+            processos,
+            corretores,
+            servicosPorStatus,
+            totalRecebido,
+            totalAReceber,
+            encerrados
         );
     }
 }

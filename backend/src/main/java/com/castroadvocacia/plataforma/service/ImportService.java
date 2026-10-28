@@ -229,9 +229,10 @@ public class ImportService {
         String clean = valor
             .replace("R$", "")
             .replace(" ", "")
-            .replace(".", "")
-            .replace(",", ".")
             .trim();
+        if (clean.contains(",")) {
+            clean = clean.replace(".", "").replace(",", ".");
+        }
         try {
             return new BigDecimal(clean);
         } catch (NumberFormatException e) {
