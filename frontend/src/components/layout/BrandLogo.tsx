@@ -16,7 +16,7 @@ export function BrandLogo({ iconSize = 44 }: BrandLogoProps) {
         style={{ width: iconSize, height: iconSize }}
       />
       <div className="flex flex-col leading-none">
-        <span className="font-bold text-lg text-gray-100">CASTRO</span>
+        <span className="font-bold text-lg text-white">CASTRO</span>
         <span className="font-bold text-xxs uppercase tracking-[0.6px] text-blue-light">
           ADVOCACIA
         </span>

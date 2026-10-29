@@ -32,8 +32,17 @@ public class ImportService {
         validarArquivo(file);
 
         List<Processo> processos = new ArrayList<>();
-        Set<String> cpfsVistos = new HashSet<>();
+        Set<String> cpfsNovos = new HashSet<>();
+        List<Cliente> clientesNovos = new ArrayList<>();
         String categoria;
+
+        // Carrega todos os CPFs existentes de uma vez (evita N+1 queries)
+        Set<String> cpfsExistentes = new HashSet<>();
+        for (Cliente c : clienteRepo.findAll()) {
+            if (c.getCpf() != null) {
+                cpfsExistentes.add(c.getCpf().replaceAll("[^0-9]", ""));
+            }
+        }
 
         try (InputStream is = file.getInputStream();
              Workbook wb = new XSSFWorkbook(is)) {
@@ -80,20 +89,31 @@ public class ImportService {
                     if (p.getCliente() == null || p.getCliente().isBlank()) continue;
 
                     processos.add(p);
-                    coletarCliente(cpfsVistos, p.getCliente(), p.getCpf());
+
+                    // Coleta cliente sem fazer query no banco a cada iteração
+                    String cpf = p.getCpf();
+                    if (cpf != null && !cpf.isBlank()) {
+                        String cpfLimpo = cpf.replaceAll("[^0-9]", "");
+                        if (!cpfLimpo.isEmpty() && !cpfsExistentes.contains(cpfLimpo) && cpfsNovos.add(cpfLimpo)) {
+                            var c = new Cliente();
+                            c.setNome(p.getCliente().trim());
+                            c.setCpf(cpf.trim());
+                            c.setStatus(StatusCliente.ATIVO);
+                            clientesNovos.add(c);
+                        }
+                    }
                 }
             }
         }
 
         processoRepo.saveAll(processos);
+        if (!clientesNovos.isEmpty()) {
+            clienteRepo.saveAll(clientesNovos);
+        }
 
-        int proximoNumero = servicoRepo.findAll().stream()
-            .map(Servico::getNumero)
-            .filter(Objects::nonNull)
-            .max(Integer::compareTo)
-            .orElse(0);
+        int proximoNumero = servicoRepo.findMaxNumero().orElse(0);
 
-        List<Servico> servicos = new ArrayList<>();
+        List<Servico> servicos = new ArrayList<>(processos.size());
         for (Processo p : processos) {
             Servico s = new Servico();
             s.setNumero(++proximoNumero);
@@ -136,23 +156,6 @@ public class ImportService {
             return name.trim();
         }
         return "Planilha importada";
-    }
-
-    private void coletarCliente(Set<String> cpfsVistos, String nome, String cpf) {
-        if (cpf == null || cpf.isBlank()) return;
-        String cpfLimpo = cpf.replaceAll("[^0-9]", "");
-        if (cpfLimpo.isEmpty() || cpfsVistos.contains(cpfLimpo)) return;
-        cpfsVistos.add(cpfLimpo);
-
-        boolean existe = clienteRepo.findAll().stream()
-            .anyMatch(c -> c.getCpf() != null && c.getCpf().replaceAll("[^0-9]", "").equals(cpfLimpo));
-        if (!existe) {
-            var c = new Cliente();
-            c.setNome(nome.trim());
-            c.setCpf(cpf.trim());
-            c.setStatus(StatusCliente.ATIVO);
-            clienteRepo.save(c);
-        }
     }
 
     private Map<String, Integer> mapearColunas(Sheet sheet) {
