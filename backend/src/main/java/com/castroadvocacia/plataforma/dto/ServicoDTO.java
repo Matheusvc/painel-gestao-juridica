@@ -6,7 +6,7 @@ public record ServicoDTO(
     String title,
     String service,
     String total,
-    ResponsavelDTO owner,
+    CorretorDTO owner,
     String status,
     String categoria
 ) {}

@@ -73,7 +73,7 @@ export function ServiceFormModal({
           inputMode="numeric"
           placeholder="R$ 0,00"
         />
-        <TextField label="Responsável" value={owner} onChange={setOwner} />
+        <TextField label="Corretor" value={owner} onChange={setOwner} />
         <SelectField
           label="Status"
           value={status}

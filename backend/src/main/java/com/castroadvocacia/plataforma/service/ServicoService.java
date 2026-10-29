@@ -1,6 +1,6 @@
 package com.castroadvocacia.plataforma.service;
 
-import com.castroadvocacia.plataforma.dto.ResponsavelDTO;
+import com.castroadvocacia.plataforma.dto.CorretorDTO;
 import com.castroadvocacia.plataforma.dto.ServicoDTO;
 import com.castroadvocacia.plataforma.dto.ServicoRequest;
 import com.castroadvocacia.plataforma.model.Servico;
@@ -99,7 +99,7 @@ public class ServicoService {
             s.getTitulo(),
             s.getTipoServico(),
             formatTotal(s.getValorTotal()),
-            new ResponsavelDTO(s.getResponsavel(), Iniciais.fromNome(s.getResponsavel())),
+            new CorretorDTO(s.getResponsavel(), Iniciais.fromNome(s.getResponsavel())),
             s.getStatus(),
             s.getCategoria()
         );

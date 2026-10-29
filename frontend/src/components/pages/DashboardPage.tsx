@@ -1,7 +1,10 @@
-import { useCallback, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useState, useRef, useEffect, type CSSProperties, type ReactNode } from "react";
 
-import { BarChart3, UserCircle } from "lucide-react";
+import { BarChart3, TrendingUp, DollarSign, UserCircle, PieChart, Search, X } from "lucide-react";
 import { ExportReportButton } from "@/components/dashboard/ExportReportButton";
+import { MonthlyProcessChart } from "@/components/dashboard/MonthlyProcessChart";
+import { MonthlyRevenueChart } from "@/components/dashboard/MonthlyRevenueChart";
+import { ValuePieChart } from "@/components/dashboard/ValuePieChart";
 import { useFetch } from "@/hooks/useFetch";
 import { dashboardApi, type DashboardStats } from "@/lib/api";
 
@@ -70,6 +73,9 @@ function SectionCard({
   children,
   style,
   className,
+  searchable,
+  searchValue,
+  onSearchChange,
 }: {
   title: string;
   icon?: ReactNode;
@@ -77,7 +83,26 @@ function SectionCard({
   children: ReactNode;
   style?: CSSProperties;
   className?: string;
+  searchable?: boolean;
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
 }) {
+  const [searchOpen, setSearchOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (searchOpen) inputRef.current?.focus();
+  }, [searchOpen]);
+
+  const handleToggle = () => {
+    if (searchOpen) {
+      onSearchChange?.("");
+      setSearchOpen(false);
+    } else {
+      setSearchOpen(true);
+    }
+  };
+
   return (
     <section
       style={style}
@@ -92,11 +117,48 @@ function SectionCard({
           )}
           <h2 className="text-sm font-bold text-gray-100">{title}</h2>
         </div>
-        {caption && (
-          <span className="shrink-0 rounded-full bg-gray-500/40 px-3 py-1 text-xs font-bold tabular-nums text-gray-100">
-            {caption}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {searchable && searchOpen && (
+            <div className="relative">
+              <input
+                ref={inputRef}
+                type="text"
+                value={searchValue ?? ""}
+                onChange={(e) => onSearchChange?.(e.target.value)}
+                placeholder="Filtrar…"
+                className="h-8 w-40 rounded-lg border border-gray-500/40 bg-gray-600/30 pl-3 pr-8 text-xs text-gray-100 placeholder:text-gray-400 focus-visible:border-blue-base focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-base/30"
+              />
+              {searchValue && (
+                <button
+                  type="button"
+                  onClick={() => onSearchChange?.("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-100"
+                >
+                  <X size={12} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          )}
+          {searchable && (
+            <button
+              type="button"
+              onClick={handleToggle}
+              aria-label={searchOpen ? "Fechar busca" : "Buscar"}
+              className={`flex size-8 items-center justify-center rounded-lg border transition-colors ${
+                searchOpen
+                  ? "border-blue-base/40 bg-blue-base/10 text-blue-base"
+                  : "border-gray-500/30 text-gray-400 hover:border-blue-base/30 hover:text-gray-100"
+              }`}
+            >
+              <Search size={14} aria-hidden="true" />
+            </button>
+          )}
+          {caption && (
+            <span className="shrink-0 rounded-full bg-gray-500/40 px-3 py-1 text-xs font-bold tabular-nums text-gray-100">
+              {caption}
+            </span>
+          )}
+        </div>
       </div>
       <div className="p-6">{children}</div>
     </section>
@@ -230,6 +292,22 @@ function sumValues(record: Record<string, number>) {
   return Object.values(record).reduce((a, b) => a + b, 0);
 }
 
+const MONTH_FULL: Record<string, string> = {
+  janeiro: "jan", fevereiro: "fev", março: "mar", marco: "mar",
+  abril: "abr", maio: "mai", junho: "jun", julho: "jul",
+  agosto: "ago", setembro: "set", outubro: "out", novembro: "nov", dezembro: "dez",
+};
+
+function filterByTerm<T>(items: T[], key: keyof T, term: string): T[] {
+  if (!term) return items;
+  const lower = term.toLowerCase().trim();
+  const abbr = MONTH_FULL[lower];
+  return items.filter((item) => {
+    const val = String(item[key]).toLowerCase();
+    return val.includes(lower) || (abbr != null && val.startsWith(abbr));
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /*  Dashboard Page                                                     */
 /* ------------------------------------------------------------------ */
@@ -238,6 +316,11 @@ export function DashboardPage() {
   const { data: stats, loading, error, refetch } = useFetch<DashboardStats>(
     useCallback(() => dashboardApi.stats(), []),
   );
+
+  const [search, setSearch] = useState<Record<string, string>>({});
+  const s = (key: string) => search[key] ?? "";
+  const setS = (key: string) => (v: string) =>
+    setSearch((prev) => ({ ...prev, [key]: v }));
 
   if (!stats && error) {
     return (
@@ -267,6 +350,12 @@ export function DashboardPage() {
   const categoriasEntries = Object.entries(processos);
   const corretoresEntries = Object.entries(corretores ?? {});
 
+  const hasProcessosMes = (stats.processosPorMes?.length ?? 0) > 0;
+  const hasValorMes = (stats.valorRecebidoPorMes?.length ?? 0) > 0;
+
+  const valorCatEntries = Object.entries(stats.valorPorCategoria ?? {});
+  const hasValorCat = valorCatEntries.length > 0;
+
   const fmt = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -277,6 +366,18 @@ export function DashboardPage() {
     { label: "Valor recebido", value: fmt(totalRecebido ?? 0) },
     { label: "Valor a receber", value: fmt(totalAReceber ?? 0) },
   ];
+
+  const filteredValorMes = filterByTerm(stats.valorRecebidoPorMes ?? [], "mes", s("valorMes"));
+  const filteredCorretores = filterByTerm(
+    corretoresEntries.map(([name, clients]) => ({ name, clients })),
+    "name",
+    s("corretores"),
+  );
+  const filteredValorCat = filterByTerm(
+    valorCatEntries.map(([label, value]) => ({ label, value })),
+    "label",
+    s("valorCat"),
+  );
 
   return (
     <div className="scrollbar-slim flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto px-6 pb-8 pt-7 lg:px-10 lg:pb-12 lg:pt-[52px]">
@@ -310,63 +411,106 @@ export function DashboardPage() {
         ))}
       </div>
 
-      {/* Corretores + Processos lado a lado */}
-      <div className="grid gap-5 xl:grid-cols-2 xl:items-start">
-        {/* Coluna esquerda: Clientes por Corretor */}
+      {/* Seções — responsivo: 1 col mobile, 2 cols desktop */}
+      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+        {/* Gráficos mensais (se houver dados) */}
+        {hasProcessosMes && (
+          <SectionCard
+            title="Evolução mensal de processos"
+            icon={<TrendingUp size={16} />}
+            style={stagger(6)}
+          >
+            <MonthlyProcessChart data={stats.processosPorMes} />
+          </SectionCard>
+        )}
+        {hasValorMes && (
+          <SectionCard
+            title="Valor recebido por mês"
+            icon={<DollarSign size={16} />}
+            style={stagger(7)}
+            searchable
+            searchValue={s("valorMes")}
+            onSearchChange={setS("valorMes")}
+          >
+            <MonthlyRevenueChart data={filteredValorMes} />
+          </SectionCard>
+        )}
+
+        {/* Gráfico de pizza — valores por categoria */}
+        {hasValorCat && (
+          <SectionCard
+            title="Valores por categoria"
+            icon={<PieChart size={16} />}
+            style={stagger(8)}
+            searchable
+            searchValue={s("valorCat")}
+            onSearchChange={setS("valorCat")}
+          >
+            <ValuePieChart data={filteredValorCat} />
+          </SectionCard>
+        )}
+
+        {/* Clientes por Corretor */}
         <SectionCard
           title="Clientes por Corretor"
           icon={<UserCircle size={16} />}
-          caption={`${corretoresEntries.length} corretores`}
-          style={stagger(6)}
+          caption={`${filteredCorretores.length} corretores`}
+          style={stagger(9)}
+          searchable
+          searchValue={s("corretores")}
+          onSearchChange={setS("corretores")}
         >
-          {corretoresEntries.length > 0 ? (
+          {filteredCorretores.length > 0 ? (
             <div className="scrollbar-slim -mr-2 max-h-[420px] overflow-y-auto pr-2">
-              <CorretorRanking
-                data={corretoresEntries.map(([name, clients]) => ({ name, clients }))}
-              />
+              <CorretorRanking data={filteredCorretores} />
             </div>
           ) : (
             <p className="py-6 text-center text-sm text-gray-400">
-              Nenhum corretor encontrado. Importe uma planilha com dados de corretores.
+              {s("corretores")
+                ? "Nenhum corretor encontrado para esta busca."
+                : "Nenhum corretor encontrado. Importe uma planilha com dados de corretores."}
             </p>
           )}
         </SectionCard>
 
-        {/* Coluna direita: Gráficos de processos */}
+        {/* Gráficos de processos por categoria */}
         {categoriasEntries.length > 0 ? (
-          <div className="flex flex-col gap-5">
-            {categoriasEntries.map(([categoria, statusMap], i) => {
-              const data = mapToSalesforceChartData(statusMap);
-              const totalCat = sumValues(statusMap);
-              return (
-                <SectionCard
-                  key={categoria}
-                  title={categoria}
-                  icon={<BarChart3 size={16} />}
-                  caption={`${totalCat} no total`}
-                  style={stagger(8 + i)}
-                >
-                  {data.length > 0 ? (
-                    <div className="scrollbar-slim -mr-2 max-h-[420px] overflow-y-auto pr-2">
-                      <HorizontalBar
-                        ariaLabel={`${categoria}: ${data.map((d) => `${d.value} ${d.label}`).join(", ")}`}
-                        data={data}
-                      />
-                    </div>
-                  ) : (
-                    <p className="py-4 text-center text-sm text-gray-400">
-                      Sem dados de status
-                    </p>
-                  )}
-                </SectionCard>
-              );
-            })}
-          </div>
+          categoriasEntries.map(([categoria, statusMap], i) => {
+            const catKey = `cat_${i}`;
+            const allData = mapToSalesforceChartData(statusMap);
+            const data = filterByTerm(allData, "label", s(catKey));
+            const totalCat = sumValues(statusMap);
+            return (
+              <SectionCard
+                key={categoria}
+                title={categoria}
+                icon={<BarChart3 size={16} />}
+                caption={`${totalCat} no total`}
+                style={stagger(11 + i)}
+                searchable
+                searchValue={s(catKey)}
+                onSearchChange={setS(catKey)}
+              >
+                {data.length > 0 ? (
+                  <div className="scrollbar-slim -mr-2 max-h-[420px] overflow-y-auto pr-2">
+                    <HorizontalBar
+                      ariaLabel={`${categoria}: ${data.map((d) => `${d.value} ${d.label}`).join(", ")}`}
+                      data={data}
+                    />
+                  </div>
+                ) : (
+                  <p className="py-4 text-center text-sm text-gray-400">
+                    {s(catKey) ? "Nenhum resultado para esta busca" : "Sem dados de status"}
+                  </p>
+                )}
+              </SectionCard>
+            );
+          })
         ) : (
           <SectionCard
             title="Processos"
             icon={<BarChart3 size={16} />}
-            style={stagger(8)}
+            style={stagger(11)}
           >
             <p className="py-4 text-center text-sm text-gray-400">
               Nenhuma planilha importada

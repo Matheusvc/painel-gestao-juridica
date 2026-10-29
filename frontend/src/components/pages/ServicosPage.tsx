@@ -34,7 +34,7 @@ function buildServicesCsv(services: Service[]): string {
     "Título",
     "Serviço",
     "Valor total",
-    "Responsável",
+    "Corretor",
     "Status",
   ];
   const rows = services.map((s) => [
@@ -172,7 +172,7 @@ export function ServicosPage() {
             value={query}
             onChange={setQuery}
             label="Buscar serviços"
-            placeholder="Buscar por título, serviço ou responsável…"
+            placeholder="Buscar por título, serviço ou corretor…"
           />
           <Button
             variant="secondary"
@@ -223,28 +223,28 @@ export function ServicosPage() {
         })}
       </div>
 
-      <div className="overflow-x-auto">
-        <div className="min-w-[920px] overflow-hidden rounded-[10px] border border-gray-500">
+      <div className="scrollbar-slim -mx-4 overflow-x-auto px-4 sm:-mx-0 sm:px-0">
+        <div className="min-w-[720px] overflow-hidden rounded-[10px] border border-gray-500">
           <table className="w-full border-collapse text-left">
             <caption className="sr-only">Lista de serviços e chamados</caption>
             <thead>
               <tr className="h-12 border-b border-gray-500">
-                <th scope="col" className="w-[150px] whitespace-nowrap px-3 text-sm font-bold text-gray-400">
+                <th scope="col" className="whitespace-nowrap px-3 text-sm font-bold text-gray-400">
                   Atualizado em
                 </th>
-                <th scope="col" className="w-[72px] px-3 text-sm font-bold text-gray-400">
+                <th scope="col" className="whitespace-nowrap px-3 text-sm font-bold text-gray-400">
                   Id
                 </th>
-                <th scope="col" className="px-3 text-sm font-normal text-gray-400">
+                <th scope="col" className="min-w-[180px] px-3 text-sm font-normal text-gray-400">
                   Planilhas
                 </th>
-                <th scope="col" className="w-[104px] px-3 text-sm font-bold text-gray-400">
+                <th scope="col" className="whitespace-nowrap px-3 text-sm font-bold text-gray-400">
                   Valor total
                 </th>
-                <th scope="col" className="w-[160px] px-3 text-sm font-normal text-gray-400">
-                  Responsável
+                <th scope="col" className="min-w-[120px] px-3 text-sm font-normal text-gray-400">
+                  Corretor
                 </th>
-                <th scope="col" className="w-[152px] px-3 text-sm font-bold text-gray-400">
+                <th scope="col" className="whitespace-nowrap px-3 text-sm font-bold text-gray-400">
                   Status
                 </th>
                 <th scope="col" className="w-[52px] px-3">

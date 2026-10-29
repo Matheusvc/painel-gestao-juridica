@@ -1,6 +1,6 @@
 package com.castroadvocacia.plataforma.dto;
 
-public record ResponsavelDTO(
+public record CorretorDTO(
     String name,
     String initials
 ) {}

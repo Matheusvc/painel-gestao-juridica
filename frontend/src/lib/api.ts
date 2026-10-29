@@ -71,10 +71,26 @@ export interface DashboardStats {
   totalRecebido: number;
   totalAReceber: number;
   encerrados: number;
+  processosPorMes: { mes: string; total: number }[];
+  valorRecebidoPorMes: { mes: string; valor: number }[];
+  valorPorCategoria: Record<string, number>;
+}
+
+export interface DailyCount {
+  dia: number;
+  total: number;
+}
+
+export interface MonthDetail {
+  total: number;
+  porStatus: Record<string, number>;
+  porDia: DailyCount[];
 }
 
 export const dashboardApi = {
   stats: () => request<DashboardStats>("/dashboard/stats"),
+  detalhesMes: (ano: string, mes: number) =>
+    request<MonthDetail>(`/dashboard/detalhes-mes?ano=${ano}&mes=${mes}`),
 };
 
 // ---- Import ----
