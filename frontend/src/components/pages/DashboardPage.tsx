@@ -1,10 +1,9 @@
 import { useCallback, useState, useRef, useEffect, type CSSProperties, type ReactNode } from "react";
 
-import { BarChart3, TrendingUp, DollarSign, UserCircle, PieChart, Search, X } from "lucide-react";
+import { BarChart3, TrendingUp, DollarSign, UserCircle, Search, X } from "lucide-react";
 import { ExportReportButton } from "@/components/dashboard/ExportReportButton";
 import { MonthlyProcessChart } from "@/components/dashboard/MonthlyProcessChart";
 import { MonthlyRevenueChart } from "@/components/dashboard/MonthlyRevenueChart";
-import { ValuePieChart } from "@/components/dashboard/ValuePieChart";
 import { useFetch } from "@/hooks/useFetch";
 import { dashboardApi, type DashboardStats } from "@/lib/api";
 
@@ -353,8 +352,6 @@ export function DashboardPage() {
   const hasProcessosMes = (stats.processosPorMes?.length ?? 0) > 0;
   const hasValorMes = (stats.valorRecebidoPorMes?.length ?? 0) > 0;
 
-  const valorCatEntries = Object.entries(stats.valorPorCategoria ?? {});
-  const hasValorCat = valorCatEntries.length > 0;
 
   const fmt = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -372,11 +369,6 @@ export function DashboardPage() {
     corretoresEntries.map(([name, clients]) => ({ name, clients })),
     "name",
     s("corretores"),
-  );
-  const filteredValorCat = filterByTerm(
-    valorCatEntries.map(([label, value]) => ({ label, value })),
-    "label",
-    s("valorCat"),
   );
 
   return (
@@ -436,21 +428,7 @@ export function DashboardPage() {
           </SectionCard>
         )}
 
-        {/* Gráfico de pizza — valores por categoria */}
-        {hasValorCat && (
-          <SectionCard
-            title="Valores por categoria"
-            icon={<PieChart size={16} />}
-            style={stagger(8)}
-            searchable
-            searchValue={s("valorCat")}
-            onSearchChange={setS("valorCat")}
-          >
-            <ValuePieChart data={filteredValorCat} />
-          </SectionCard>
-        )}
-
-        {/* Clientes por Corretor */}
+{/* Clientes por Corretor */}
         <SectionCard
           title="Clientes por Corretor"
           icon={<UserCircle size={16} />}
