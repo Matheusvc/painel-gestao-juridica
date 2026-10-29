@@ -38,7 +38,7 @@ public class Usuario {
 
     private String cargo;
 
-    @Lob
+    @Column(columnDefinition = "TEXT")
     private String fotoUrl;
 
     @Enumerated(EnumType.STRING)
