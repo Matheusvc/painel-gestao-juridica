@@ -27,10 +27,10 @@ jobs:
 
       - name: Deploy to CapRover
         env:
-          CAPROVER_URL: ${{ secrets.CAPROVER_URL }}
+          CAPROVER_URL: ${{ vars.CAPROVER_URL }}
           CAPROVER_APP_TOKEN: ${{ secrets.CAPROVER_APP_TOKEN }}
         run: |
-          : "${CAPROVER_URL:?Secret CAPROVER_URL não configurado no GitHub}"
+          : "${CAPROVER_URL:?Variable CAPROVER_URL não configurada no GitHub}"
           : "${CAPROVER_APP_TOKEN:?Secret CAPROVER_APP_TOKEN não configurado no GitHub}"
           npx -y caprover deploy \
             --caproverUrl "$CAPROVER_URL" \
