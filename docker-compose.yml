@@ -1,0 +1,24 @@
+services:
+  backend:
+    build: ./backend
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_USER=${DATABASE_USER}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGINS=http://localhost,http://localhost:80
+    expose:
+      - "8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
