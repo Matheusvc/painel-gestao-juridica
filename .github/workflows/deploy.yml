@@ -43,7 +43,7 @@ jobs:
           npx -y caprover deploy \
             --caproverUrl "$CAPROVER_URL" \
             --appToken "$CAPROVER_APP_TOKEN" \
-            --appName backend \
+            --appName painel-gestao-juridica \
             --tarFile deploy.tar 2>&1 | tee deploy.log
           status=${PIPESTATUS[0]}
           set -e
