@@ -44,6 +44,10 @@ spring:
     console:
       enabled: false
 
+  # Dev usa H2 + ddl-auto create + data.sql; migrations só rodam no prod
+  flyway:
+    enabled: false
+
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
@@ -56,7 +60,7 @@ spring:
       mode: always
 
 ---
-# Perfil PROD (Supabase PostgreSQL)
+# Perfil PROD (PostgreSQL) — schema gerenciado pelo Flyway (db/migration)
 spring:
   config:
     activate:
@@ -70,7 +74,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: false
 
   sql:
