@@ -20,15 +20,20 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Package repo
         run: git archive --format=tar -o deploy.tar HEAD
 
       - name: Deploy to CapRover
+        env:
+          CAPROVER_URL: ${{ secrets.CAPROVER_URL }}
+          CAPROVER_APP_TOKEN: ${{ secrets.CAPROVER_APP_TOKEN }}
         run: |
+          : "${CAPROVER_URL:?Secret CAPROVER_URL não configurado no GitHub}"
+          : "${CAPROVER_APP_TOKEN:?Secret CAPROVER_APP_TOKEN não configurado no GitHub}"
           npx -y caprover deploy \
-            --caproverUrl "${{ secrets.CAPROVER_URL }}" \
-            --appToken "${{ secrets.CAPROVER_APP_TOKEN }}" \
+            --caproverUrl "$CAPROVER_URL" \
+            --appToken "$CAPROVER_APP_TOKEN" \
             --appName backend \
             --tarFile deploy.tar
