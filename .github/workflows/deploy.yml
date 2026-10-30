@@ -1,0 +1,34 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "captain-definition"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package repo
+        run: git archive --format=tar -o deploy.tar HEAD
+
+      - name: Deploy to CapRover
+        run: |
+          npx -y caprover deploy \
+            --caproverUrl "${{ secrets.CAPROVER_URL }}" \
+            --appToken "${{ secrets.CAPROVER_APP_TOKEN }}" \
+            --appName backend \
+            --tarFile deploy.tar
