@@ -30,10 +30,27 @@ jobs:
           CAPROVER_URL: ${{ vars.CAPROVER_URL }}
           CAPROVER_APP_TOKEN: ${{ secrets.CAPROVER_APP_TOKEN }}
         run: |
-          : "${CAPROVER_URL:?Variable CAPROVER_URL não configurada no GitHub}"
-          : "${CAPROVER_APP_TOKEN:?Secret CAPROVER_APP_TOKEN não configurado no GitHub}"
+          if [ -z "$CAPROVER_URL" ]; then
+            echo "::error title=Config::Variable CAPROVER_URL vazia (Settings > Secrets and variables > Actions > Variables)"
+            exit 1
+          fi
+          if [ -z "$CAPROVER_APP_TOKEN" ]; then
+            echo "::error title=Config::Secret CAPROVER_APP_TOKEN vazio (Settings > Secrets and variables > Actions > Secrets)"
+            exit 1
+          fi
+
+          set +e
           npx -y caprover deploy \
             --caproverUrl "$CAPROVER_URL" \
             --appToken "$CAPROVER_APP_TOKEN" \
             --appName backend \
-            --tarFile deploy.tar
+            --tarFile deploy.tar 2>&1 | tee deploy.log
+          status=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$status" -ne 0 ]; then
+            # Copia as últimas linhas do erro para o painel de Annotations
+            msg=$(sed 's/\x1b\[[0-9;]*m//g' deploy.log | awk 'NF' | tail -n 8 | awk '{printf "%s%%0A", $0}')
+            echo "::error title=CapRover deploy falhou::${msg}"
+            exit "$status"
+          fi
