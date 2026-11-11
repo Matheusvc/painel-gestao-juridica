@@ -3,21 +3,25 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { DashboardPage } from "@/components/pages/DashboardPage";
 import { ClientesPage } from "@/components/pages/ClientesPage";
 import { ServicosPage } from "@/components/pages/ServicosPage";
+import { CorretoresPage } from "@/components/pages/CorretoresPage";
 import { ImportarPage } from "@/components/pages/ImportarPage";
+import { UsuariosPage } from "@/components/pages/UsuariosPage";
 import { PerfilPage } from "@/components/pages/PerfilPage";
 import { LoginPage } from "@/components/pages/LoginPage";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { useHashRoute } from "@/hooks/useHashRoute";
 
-const ROUTES = ["dashboard", "clientes", "servicos", "importar", "perfil", "login"] as const;
+const ROUTES = ["dashboard", "clientes", "servicos", "corretores", "importar", "usuarios", "perfil", "login"] as const;
 type Route = (typeof ROUTES)[number];
 
 const PAGES: Record<Exclude<Route, "login">, ReactNode> = {
   dashboard: <DashboardPage />,
   clientes: <ClientesPage />,
   servicos: <ServicosPage />,
+  corretores: <CorretoresPage />,
   importar: <ImportarPage />,
+  usuarios: <UsuariosPage />,
   perfil: <PerfilPage />,
 };
 

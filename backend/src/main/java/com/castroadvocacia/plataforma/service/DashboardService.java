@@ -1,5 +1,6 @@
 package com.castroadvocacia.plataforma.service;
 
+import com.castroadvocacia.plataforma.dto.CorretorDetalheDTO;
 import com.castroadvocacia.plataforma.dto.DashboardDTO;
 import com.castroadvocacia.plataforma.dto.DashboardDTO.*;
 import com.castroadvocacia.plataforma.model.*;
@@ -123,8 +124,80 @@ public class DashboardService {
             || upper.equals("ENCERRADO") || upper.equals("ARQUIVO MORTO");
     }
 
-    public DashboardDTO obterEstatisticas() {
-        var todosProcessos = processoRepo.findAll();
+    public List<String> listarCorretores() {
+        return processoRepo.findDistinctCorretores();
+    }
+
+    public CorretorDetalheDTO detalheCorretor(String corretor) {
+        var procs = processoRepo.findByCorretorIgnoreCase(corretor);
+
+        Set<String> clientesUnicos = procs.stream()
+            .map(Processo::getCliente)
+            .filter(c -> c != null && !c.isBlank())
+            .map(c -> c.trim().toUpperCase())
+            .collect(Collectors.toSet());
+
+        BigDecimal valorTotal = procs.stream()
+            .filter(p -> p.getValor() != null && !p.getValor().isBlank())
+            .map(p -> parseValor(p.getValor()))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        Map<String, Long> porStatus = procs.stream()
+            .filter(p -> p.getStatus() != null && !p.getStatus().isBlank())
+            .collect(Collectors.groupingBy(
+                p -> p.getStatus().trim(),
+                LinkedHashMap::new,
+                Collectors.counting()
+            ))
+            .entrySet().stream()
+            .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a, LinkedHashMap::new));
+
+        Map<String, Long> porBeneficio = procs.stream()
+            .filter(p -> p.getBeneficio() != null && !p.getBeneficio().isBlank())
+            .collect(Collectors.groupingBy(
+                p -> p.getBeneficio().trim(),
+                LinkedHashMap::new,
+                Collectors.counting()
+            ))
+            .entrySet().stream()
+            .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a, LinkedHashMap::new));
+
+        List<CorretorDetalheDTO.ClienteResumoDTO> clientes = procs.stream()
+            .filter(p -> p.getCliente() != null && !p.getCliente().isBlank())
+            .map(p -> new CorretorDetalheDTO.ClienteResumoDTO(
+                p.getCliente().trim(),
+                p.getCpf() != null ? p.getCpf().trim() : "",
+                p.getBeneficio() != null ? p.getBeneficio().trim() : "",
+                p.getStatus() != null ? p.getStatus().trim() : "",
+                p.getValor() != null ? p.getValor().trim() : "",
+                p.getDataProtocolo() != null ? p.getDataProtocolo().trim() : ""
+            ))
+            .toList();
+
+        return new CorretorDetalheDTO(
+            corretor,
+            clientesUnicos.size(),
+            procs.size(),
+            valorTotal,
+            porStatus,
+            porBeneficio,
+            clientes
+        );
+    }
+
+    public DashboardDTO obterEstatisticas(Integer mes, Integer ano) {
+        var todos = processoRepo.findAll();
+        var todosProcessos = (mes != null && ano != null)
+            ? todos.stream()
+                .filter(p -> {
+                    String a = p.getAno() != null ? p.getAno().trim() : "";
+                    if (a.length() == 2) a = "20" + a;
+                    return a.equals(String.valueOf(ano)) && parseMonth(p.getMes()) == mes;
+                })
+                .toList()
+            : todos;
 
         // --- Clientes derivados diretamente dos processos (planilha) ---
         Set<String> todosClientes = todosProcessos.stream()

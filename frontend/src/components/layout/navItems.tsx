@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Upload } from "lucide-react";
+import { Upload, UserCheck, Users } from "lucide-react";
 import { InlineIcon } from "./InlineIcon";
 import dashboardIcon from "@/assets/icon-dashboard.svg?raw";
 import clientesIcon from "@/assets/icon-clientes.svg?raw";
@@ -36,9 +36,21 @@ export const navItems: NavItem[] = [
     href: "#servicos",
   },
   {
+    id: "corretores",
+    label: "Corretores",
+    icon: <UserCheck size={22} />,
+    href: "#corretores",
+  },
+  {
     id: "importar",
     label: "Importar",
     icon: <Upload size={22} />,
     href: "#importar",
+  },
+  {
+    id: "usuarios",
+    label: "Usuarios",
+    icon: <Users size={22} />,
+    href: "#usuarios",
   },
 ];

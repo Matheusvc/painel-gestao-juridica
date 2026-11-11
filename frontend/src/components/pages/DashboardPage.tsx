@@ -1,6 +1,7 @@
-import { useCallback, useState, useRef, useEffect, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useMemo, useState, useRef, useEffect, type CSSProperties, type ReactNode } from "react";
 
-import { BarChart3, TrendingUp, DollarSign, UserCircle, Search, X } from "lucide-react";
+import { BarChart3, TrendingUp, DollarSign, UserCircle, Search, X, FileSpreadsheet, ChevronDown, Users } from "lucide-react";
+import { CompetenciaSelector, type Competencia } from "@/components/dashboard/CompetenciaSelector";
 import { ExportReportButton } from "@/components/dashboard/ExportReportButton";
 import { MonthlyProcessChart } from "@/components/dashboard/MonthlyProcessChart";
 import { MonthlyRevenueChart } from "@/components/dashboard/MonthlyRevenueChart";
@@ -311,12 +312,120 @@ function filterByTerm<T>(items: T[], key: keyof T, term: string): T[] {
 /*  Dashboard Page                                                     */
 /* ------------------------------------------------------------------ */
 
+function ExportCorretorButton({ corretores }: { corretores: string[] }) {
+  const [open, setOpen] = useState(false);
+  const [exporting, setExporting] = useState<string | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onClick); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+
+  const handleExport = async (nome: string) => {
+    setExporting(nome);
+    setOpen(false);
+    try {
+      const d = await dashboardApi.corretorDetalhe(nome);
+      const fmtV = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+      const rows: string[][] = [
+        ["Relatório do Corretor — " + d.corretor],
+        ["Gerado em", new Date().toLocaleString("pt-BR")],
+        ["Total de Clientes", String(d.totalClientes)],
+        ["Total de Processos", String(d.totalProcessos)],
+        ["Valor Total", fmtV(d.valorTotal)],
+        [],
+        ["Cliente", "CPF", "Benefício", "Status", "Valor", "Data Protocolo"],
+        ...d.clientes.map((c) => [c.nome, c.cpf, c.beneficio, c.status, c.valor, c.dataProtocolo]),
+      ];
+      const csv = "﻿" + rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(";")).join("\r\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `relatorio-corretor-${nome}-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  if (corretores.length === 0) return null;
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        disabled={!!exporting}
+        className="inline-flex h-10 items-center gap-2 rounded-sm border border-gray-500 bg-surface px-4 text-sm font-bold text-gray-100 transition-colors hover:bg-gray-600 disabled:opacity-60"
+      >
+        <Users size={16} />
+        {exporting ? `Exportando ${exporting}…` : "Exportar Relatório Corretor"}
+        <ChevronDown size={14} />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-2 max-h-64 w-64 overflow-y-auto rounded-lg border border-gray-500 bg-surface py-1 shadow-card-hover">
+          {corretores.map((name) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => handleExport(name)}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-100 transition-colors hover:bg-gray-600"
+            >
+              <FileSpreadsheet size={16} className="text-gray-400" />
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const MONTH_ABBR_MAP: Record<string, number> = {
+  jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6,
+  jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12,
+};
+
+function parseCompetencia(mes: string): Competencia | null {
+  const m = mes.match(/^(\w+)\/(\d{2})$/);
+  if (!m) return null;
+  const mesNum = MONTH_ABBR_MAP[m[1].toLowerCase()];
+  if (!mesNum) return null;
+  return { mes: mesNum, ano: 2000 + parseInt(m[2]) };
+}
+
 export function DashboardPage() {
-  const { data: stats, loading, error, refetch } = useFetch<DashboardStats>(
+  const { data: allStats, loading: loadingAll, error: errorAll, refetch } = useFetch<DashboardStats>(
     useCallback(() => dashboardApi.stats(), []),
   );
 
   const [search, setSearch] = useState<Record<string, string>>({});
+  const [competencia, setCompetencia] = useState<Competencia | null>(null);
+
+  const { data: filteredStats, loading: loadingFiltered } = useFetch<DashboardStats>(
+    useCallback(
+      () => competencia
+        ? dashboardApi.stats(competencia.mes, competencia.ano)
+        : dashboardApi.stats(),
+      [competencia],
+    ),
+  );
+
+  const stats = competencia ? filteredStats : allStats;
+  const loading = competencia ? loadingFiltered : loadingAll;
+  const error = errorAll;
+
   const s = (key: string) => search[key] ?? "";
   const setS = (key: string) => (v: string) =>
     setSearch((prev) => ({ ...prev, [key]: v }));
@@ -344,7 +453,7 @@ export function DashboardPage() {
     );
   }
 
-  const { clients, processos, corretores, totalRecebido, totalAReceber, encerrados } = stats;
+  const { clients, processos, corretores, encerrados } = stats;
 
   const categoriasEntries = Object.entries(processos);
   const corretoresEntries = Object.entries(corretores ?? {});
@@ -352,16 +461,19 @@ export function DashboardPage() {
   const hasProcessosMes = (stats.processosPorMes?.length ?? 0) > 0;
   const hasValorMes = (stats.valorRecebidoPorMes?.length ?? 0) > 0;
 
-
-  const fmt = (v: number) =>
-    v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const availableCompetencias = useMemo(() => {
+    const set = new Map<string, Competencia>();
+    for (const d of allStats?.processosPorMes ?? []) {
+      const c = parseCompetencia(d.mes);
+      if (c) set.set(`${c.ano}-${c.mes}`, c);
+    }
+    return Array.from(set.values()).sort((a, b) => a.ano === b.ano ? a.mes - b.mes : a.ano - b.ano);
+  }, [allStats?.processosPorMes]);
 
   const kpis = [
     { label: "Total de clientes", value: clients.total },
     { label: "Ativos", value: clients.active },
     { label: "Encerrados", value: encerrados ?? 0 },
-    { label: "Valor recebido", value: fmt(totalRecebido ?? 0) },
-    { label: "Valor a receber", value: fmt(totalAReceber ?? 0) },
   ];
 
   const filteredValorMes = filterByTerm(stats.valorRecebidoPorMes ?? [], "mes", s("valorMes"));
@@ -374,24 +486,35 @@ export function DashboardPage() {
   return (
     <div className="scrollbar-slim flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto px-6 pb-8 pt-7 lg:px-10 lg:pb-12 lg:pt-[52px]">
       {/* Header */}
-      <header className="flex animate-fade-in-up flex-col gap-4 motion-reduce:animate-none sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold leading-tight text-gray-100">Dashboard</h1>
-          <p className="text-sm text-gray-400">
-            Visão geral do escritório · {dateLabel}
-          </p>
+      <header className="flex animate-fade-in-up flex-col gap-4 motion-reduce:animate-none">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-2xl font-bold leading-tight text-gray-100">Dashboard</h1>
+            <p className="text-sm text-gray-400">
+              Visão geral do escritório · {dateLabel}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <CompetenciaSelector
+              available={availableCompetencias}
+              selected={competencia}
+              onSelect={setCompetencia}
+            />
+            <ExportReportButton
+              data={{
+                dateLabel,
+                clients,
+                processos,
+              }}
+              label="Exportar Relatório Geral"
+            />
+            <ExportCorretorButton corretores={corretoresEntries.map(([name]) => name)} />
+          </div>
         </div>
-        <ExportReportButton
-          data={{
-            dateLabel,
-            clients,
-            processos,
-          }}
-        />
       </header>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {kpis.map((kpi, i) => (
           <KpiCard
             key={kpi.label}

@@ -159,9 +159,10 @@ function printReport(d: ReportData) {
 
 interface ExportReportButtonProps {
   data: ReportData;
+  label?: string;
 }
 
-export function ExportReportButton({ data }: ExportReportButtonProps) {
+export function ExportReportButton({ data, label }: ExportReportButtonProps) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -208,7 +209,7 @@ export function ExportReportButton({ data }: ExportReportButtonProps) {
         className="inline-flex h-10 items-center gap-2 rounded-sm bg-blue-base px-4 text-sm font-bold text-white transition-colors hover:bg-blue-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-base focus-visible:ring-offset-2"
       >
         <Download size={16} aria-hidden="true" />
-        Exportar relatório
+        {label ?? "Exportar relatório"}
       </button>
 
       {open && (

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, Download, PenLine, Plus } from "lucide-react";
+import { ChevronDown, Download, PenLine, Plus, UserSearch } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { IconButton } from "@/components/ui/IconButton";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -67,14 +67,24 @@ export function ServicosPage() {
 
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [corretorFilter, setCorretorFilter] = useState<string>("all");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Service | null>(null);
 
   useEffect(() => {
     setStatusFilter("all");
+    setCorretorFilter("all");
   }, [selectedCategoria]);
 
   const list = services ?? [];
+
+  const corretores = useMemo(() => {
+    const names = new Set<string>();
+    for (const s of list) {
+      if (s.owner.name) names.add(s.owner.name);
+    }
+    return Array.from(names).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [list]);
 
   const dynamicStatuses = useMemo(() => {
     const seen = new Map<string, number>();
@@ -100,13 +110,14 @@ export function ServicosPage() {
     const q = query.trim().toLowerCase();
     return list.filter((s) => {
       if (statusFilter !== "all" && s.status !== statusFilter) return false;
+      if (corretorFilter !== "all" && s.owner.name !== corretorFilter) return false;
       if (!q) return true;
       return [s.id, s.title, s.service, s.owner.name]
         .join(" ")
         .toLowerCase()
         .includes(q);
     });
-  }, [list, query, statusFilter]);
+  }, [list, query, statusFilter, corretorFilter]);
 
   const handleExport = () => {
     const stamp = new Date().toISOString().slice(0, 10);
@@ -167,7 +178,23 @@ export function ServicosPage() {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {corretores.length > 0 && (
+            <div className="relative">
+              <UserSearch size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <select
+                value={corretorFilter}
+                onChange={(e) => setCorretorFilter(e.target.value)}
+                className="h-9 appearance-none rounded-full border border-gray-500 bg-surface pl-9 pr-9 text-sm font-bold text-gray-100 transition-colors hover:bg-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-base"
+              >
+                <option value="all">Todos os corretores</option>
+                {corretores.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            </div>
+          )}
           <SearchInput
             value={query}
             onChange={setQuery}
@@ -303,9 +330,11 @@ export function ServicosPage() {
                   <td colSpan={7} className="px-3 py-10 text-center text-sm text-gray-400">
                     {query
                       ? `Nenhum serviço encontrado para "${query}".`
-                      : statusFilter !== "all"
-                        ? "Nenhum serviço com esse status."
-                        : "Nenhum serviço cadastrado."}
+                      : corretorFilter !== "all"
+                        ? `Nenhum serviço para o corretor "${corretorFilter}".`
+                        : statusFilter !== "all"
+                          ? "Nenhum serviço com esse status."
+                          : "Nenhum serviço cadastrado."}
                   </td>
                 </tr>
               )}

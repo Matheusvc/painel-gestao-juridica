@@ -87,10 +87,33 @@ export interface MonthDetail {
   porDia: DailyCount[];
 }
 
+export interface CorretorDetalhe {
+  corretor: string;
+  totalClientes: number;
+  totalProcessos: number;
+  valorTotal: number;
+  processosPorStatus: Record<string, number>;
+  processosPorBeneficio: Record<string, number>;
+  clientes: {
+    nome: string;
+    cpf: string;
+    beneficio: string;
+    status: string;
+    valor: string;
+    dataProtocolo: string;
+  }[];
+}
+
 export const dashboardApi = {
-  stats: () => request<DashboardStats>("/dashboard/stats"),
+  stats: (mes?: number, ano?: number) => {
+    const params = mes != null && ano != null ? `?mes=${mes}&ano=${ano}` : "";
+    return request<DashboardStats>(`/dashboard/stats${params}`);
+  },
   detalhesMes: (ano: string, mes: number) =>
     request<MonthDetail>(`/dashboard/detalhes-mes?ano=${ano}&mes=${mes}`),
+  corretores: () => request<string[]>("/dashboard/corretores"),
+  corretorDetalhe: (nome: string) =>
+    request<CorretorDetalhe>(`/dashboard/corretores/${encodeURIComponent(nome)}`),
 };
 
 // ---- Import ----
@@ -121,4 +144,25 @@ export const importApi = {
   categorias: () => request<string[]>("/import/categorias"),
   remover: (categoria: string) =>
     request<void>(`/import/${encodeURIComponent(categoria)}`, { method: "DELETE" }),
+};
+
+// ---- Usuarios ----
+
+export interface UsuarioDTO {
+  id: string;
+  nome: string;
+  email: string;
+  perfil: string;
+  cargo: string;
+  criadoEm: string;
+}
+
+export const usuariosApi = {
+  list: () => request<UsuarioDTO[]>("/usuarios"),
+  create: (data: { nome: string; email: string; senha: string; perfil: string; cargo?: string }) =>
+    request<UsuarioDTO>("/usuarios", { method: "POST", body: JSON.stringify(data) }),
+  update: (id: string, data: { nome?: string; email?: string; senha?: string; perfil?: string; cargo?: string }) =>
+    request<UsuarioDTO>(`/usuarios/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  remove: (id: string) =>
+    request<void>(`/usuarios/${id}`, { method: "DELETE" }),
 };
