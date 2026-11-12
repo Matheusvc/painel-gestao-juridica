@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   ChevronDown,
@@ -7,76 +7,18 @@ import {
   UserCircle,
   Users,
 } from "lucide-react";
+import { HorizontalBar } from "@/components/dashboard/HorizontalBar";
+import { KpiCard } from "@/components/dashboard/KpiCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusTag } from "@/components/ui/StatusTag";
+import { useClickOutside } from "@/hooks/useClickOutside";
 import { useFetch } from "@/hooks/useFetch";
+import { CHART_COLORS } from "@/lib/charts";
+import { downloadText, escapeHtml } from "@/lib/download";
 import { dashboardApi, type CorretorDetalhe } from "@/lib/api";
-
-const salesforceColors = [
-  "#1B96FF", "#04844B", "#E3066A", "#FF6B2B", "#7526E5",
-  "#0EB58C", "#FE5C4C", "#3A7AF2", "#B7560E", "#27AAE1",
-] as const;
 
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-function KpiCard({ label, value, style }: { label: string; value: string | number; style?: CSSProperties }) {
-  return (
-    <article
-      style={style}
-      className="flex flex-col gap-3 rounded-2xl border border-gray-500/60 bg-surface p-5 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-base/30 hover:shadow-card-hover"
-    >
-      <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">{label}</span>
-      <span className="text-3xl font-bold leading-none tabular-nums text-gray-100">{value}</span>
-    </article>
-  );
-}
-
-function HorizontalBar({ data, ariaLabel }: { data: { label: string; value: number; color: string }[]; ariaLabel: string }) {
-  const max = Math.max(...data.map((d) => d.value), 1);
-  const total = data.reduce((s, d) => s + d.value, 0) || 1;
-  return (
-    <ul className="flex flex-col gap-4" role="img" aria-label={ariaLabel}>
-      {data.map((d) => (
-        <li key={d.label} className="flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-3 text-sm">
-            <span className="flex min-w-0 items-center gap-2.5 text-gray-100">
-              <span className="size-3 shrink-0 rounded-sm" style={{ backgroundColor: d.color }} />
-              <span className="truncate">{d.label}</span>
-            </span>
-            <span className="shrink-0 tabular-nums text-gray-400">
-              <span className="font-bold text-gray-100">{d.value}</span> · {Math.round((d.value / total) * 100)}%
-            </span>
-          </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-border-light">
-            <div
-              className="h-full rounded-full transition-[width] duration-700"
-              style={{ width: `${(d.value / max) * 100}%`, backgroundColor: d.color, minWidth: d.value > 0 ? "0.5rem" : 0 }}
-            />
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function downloadText(filename: string, text: string, mime: string) {
-  const blob = new Blob([text], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-function escapeHtml(v: string | number) {
-  return String(v).replace(/[&<>"']/g, (ch) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] ?? ch,
-  );
 }
 
 function buildCorretorCsv(d: CorretorDetalhe) {
@@ -143,6 +85,64 @@ function printCorretorReport(d: CorretorDetalhe) {
   } else cleanup();
 }
 
+function CorretorSelector({
+  corretores,
+  selected,
+  onSelect,
+}: {
+  corretores: string[];
+  selected: string;
+  onSelect: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useClickOutside(wrapRef, open, close);
+
+  const label = selected || "Selecionar corretor";
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-500/40 bg-surface px-3 text-sm font-medium text-gray-100 transition-colors hover:border-blue-base/40 hover:bg-gray-600"
+      >
+        <Users size={15} className="text-blue-base" />
+        <span className="font-bold">{label}</span>
+        <ChevronDown size={14} className="text-gray-400" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-30 mt-2 max-h-72 w-64 overflow-y-auto rounded-xl border border-gray-500/60 bg-surface py-1 shadow-card-hover">
+          <button
+            type="button"
+            onClick={() => { onSelect(""); setOpen(false); }}
+            className={`w-full px-4 py-2.5 text-left text-sm font-medium transition-colors ${
+              !selected ? "bg-blue-base/15 text-blue-base" : "text-gray-400 hover:bg-gray-600/50 hover:text-gray-100"
+            }`}
+          >
+            Todos os corretores
+          </button>
+          {corretores.map((name) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => { onSelect(name); setOpen(false); }}
+              className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
+                selected === name
+                  ? "bg-blue-base/15 font-bold text-blue-base"
+                  : "text-gray-100 hover:bg-gray-600/50"
+              }`}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function CorretoresPage() {
   const { data: corretores, loading: loadingList } = useFetch<string[]>(
     useCallback(() => dashboardApi.corretores(), []),
@@ -159,14 +159,14 @@ export function CorretoresPage() {
   const statusData = useMemo(() => {
     if (!detalhe) return [];
     return Object.entries(detalhe.processosPorStatus).map(([label, value], i) => ({
-      label, value, color: salesforceColors[i % salesforceColors.length],
+      label, value, color: CHART_COLORS[i % CHART_COLORS.length],
     }));
   }, [detalhe]);
 
   const beneficioData = useMemo(() => {
     if (!detalhe) return [];
     return Object.entries(detalhe.processosPorBeneficio).map(([label, value], i) => ({
-      label, value, color: salesforceColors[(i + 3) % salesforceColors.length],
+      label, value, color: CHART_COLORS[(i + 3) % CHART_COLORS.length],
     }));
   }, [detalhe]);
 
@@ -193,22 +193,11 @@ export function CorretoresPage() {
     <div className="scrollbar-slim flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto px-6 pb-8 pt-7 lg:px-10 lg:pb-12 lg:pt-[52px]">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <PageHeader title="Corretores" />
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Users size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <select
-              value={selected}
-              onChange={(e) => setSelected(e.target.value)}
-              className="h-10 appearance-none rounded-full border border-gray-500 bg-surface pl-9 pr-10 text-sm font-bold text-gray-100 transition-colors hover:bg-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-base"
-            >
-              <option value="">Selecionar corretor</option>
-              {(corretores ?? []).map((name) => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
-            <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          </div>
-        </div>
+        <CorretorSelector
+          corretores={corretores ?? []}
+          selected={selected}
+          onSelect={setSelected}
+        />
       </header>
 
       {!selected && (

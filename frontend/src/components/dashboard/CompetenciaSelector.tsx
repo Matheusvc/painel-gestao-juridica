@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
+import { useClickOutside } from "@/hooks/useClickOutside";
 
 const MONTH_NAMES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -25,20 +26,11 @@ interface Props {
 export function CompetenciaSelector({ available, selected, onSelect }: Props) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useClickOutside(wrapRef, open, close);
 
   const years = [...new Set(available.map((c) => c.ano))].sort((a, b) => b - a);
   const [viewYear, setViewYear] = useState(selected?.ano ?? years[0] ?? new Date().getFullYear());
-
-  useEffect(() => {
-    if (!open) return;
-    const onClick = (e: MouseEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("mousedown", onClick);
-    document.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("mousedown", onClick); document.removeEventListener("keydown", onKey); };
-  }, [open]);
 
   const isAvailable = (mes: number, ano: number) =>
     available.some((c) => c.mes === mes && c.ano === ano);

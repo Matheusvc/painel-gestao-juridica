@@ -3,9 +3,13 @@ import { useCallback, useMemo, useState, useRef, useEffect, type CSSProperties, 
 import { BarChart3, TrendingUp, DollarSign, UserCircle, Search, X, FileSpreadsheet, ChevronDown, Users } from "lucide-react";
 import { CompetenciaSelector, type Competencia } from "@/components/dashboard/CompetenciaSelector";
 import { ExportReportButton } from "@/components/dashboard/ExportReportButton";
+import { HorizontalBar } from "@/components/dashboard/HorizontalBar";
+import { KpiCard } from "@/components/dashboard/KpiCard";
 import { MonthlyProcessChart } from "@/components/dashboard/MonthlyProcessChart";
 import { MonthlyRevenueChart } from "@/components/dashboard/MonthlyRevenueChart";
+import { useClickOutside } from "@/hooks/useClickOutside";
 import { useFetch } from "@/hooks/useFetch";
+import { CHART_COLORS, mapToChartData, sumValues } from "@/lib/charts";
 import { dashboardApi, type DashboardStats } from "@/lib/api";
 
 const rawDate = new Intl.DateTimeFormat("pt-BR", {
@@ -15,51 +19,8 @@ const rawDate = new Intl.DateTimeFormat("pt-BR", {
 }).format(new Date());
 const dateLabel = rawDate.charAt(0).toUpperCase() + rawDate.slice(1);
 
-const salesforceColors = [
-  "#1B96FF", // azul brilhante
-  "#04844B", // verde
-  "#E3066A", // rosa
-  "#FF6B2B", // laranja
-  "#7526E5", // roxo
-  "#0EB58C", // verde-agua
-  "#FE5C4C", // vermelho
-  "#3A7AF2", // azul médio
-  "#B7560E", // marrom
-  "#27AAE1", // ciano
-] as const;
-
 function stagger(index: number): CSSProperties {
   return { animationDelay: `${index * 70}ms` };
-}
-
-/* ------------------------------------------------------------------ */
-/*  KPI Card                                                           */
-/* ------------------------------------------------------------------ */
-
-function KpiCard({
-  label,
-  value,
-  className,
-  style,
-}: {
-  label: string;
-  value: number | string;
-  className?: string;
-  style?: CSSProperties;
-}) {
-  return (
-    <article
-      style={style}
-      className={`group flex flex-col gap-3 rounded-2xl border border-gray-500/60 bg-surface p-5 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-base/30 hover:shadow-card-hover ${className ?? ""}`}
-    >
-      <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-        {label}
-      </span>
-      <span className="text-3xl font-bold leading-none tabular-nums text-gray-100">
-        {value}
-      </span>
-    </article>
-  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -166,56 +127,6 @@ function SectionCard({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Horizontal Bar Chart                                               */
-/* ------------------------------------------------------------------ */
-
-function HorizontalBar({
-  data,
-  ariaLabel,
-}: {
-  data: { label: string; value: number; color: string }[];
-  ariaLabel: string;
-}) {
-  const total = data.reduce((sum, d) => sum + d.value, 0) || 1;
-  const max = Math.max(...data.map((d) => d.value), 1);
-
-  return (
-    <ul className="flex flex-col gap-4" role="img" aria-label={ariaLabel}>
-      {data.map((d) => {
-        const pct = Math.round((d.value / total) * 100);
-        return (
-          <li key={d.label} className="flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <span className="flex min-w-0 items-center gap-2.5 text-gray-100">
-                <span
-                  className="size-3 shrink-0 rounded-sm"
-                  style={{ backgroundColor: d.color }}
-                  aria-hidden="true"
-                />
-                <span className="truncate">{d.label}</span>
-              </span>
-              <span className="shrink-0 tabular-nums text-gray-400">
-                <span className="font-bold text-gray-100">{d.value}</span> · {pct}%
-              </span>
-            </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-border-light">
-              <div
-                className="h-full rounded-full transition-[width] duration-700"
-                style={{
-                  width: `${(d.value / max) * 100}%`,
-                  backgroundColor: d.color,
-                  minWidth: d.value > 0 ? "0.5rem" : 0,
-                }}
-              />
-            </div>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /*  Corretor Ranking                                                   */
 /* ------------------------------------------------------------------ */
 
@@ -236,7 +147,7 @@ function CorretorRanking({
           .map((w) => w[0])
           .join("")
           .toUpperCase();
-        const color = salesforceColors[i % salesforceColors.length];
+        const color = CHART_COLORS[i % CHART_COLORS.length];
         const pct = totalClients > 0 ? Math.round((d.clients / totalClients) * 100) : 0;
 
         return (
@@ -280,18 +191,6 @@ function CorretorRanking({
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-function mapToSalesforceChartData(record: Record<string, number>) {
-  return Object.entries(record).map(([label, value], i) => ({
-    label,
-    value,
-    color: salesforceColors[i % salesforceColors.length],
-  }));
-}
-
-function sumValues(record: Record<string, number>) {
-  return Object.values(record).reduce((a, b) => a + b, 0);
-}
-
 const MONTH_FULL: Record<string, string> = {
   janeiro: "jan", fevereiro: "fev", março: "mar", marco: "mar",
   abril: "abr", maio: "mai", junho: "jun", julho: "jul",
@@ -309,24 +208,15 @@ function filterByTerm<T>(items: T[], key: keyof T, term: string): T[] {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Dashboard Page                                                     */
+/*  Export Corretor Button                                             */
 /* ------------------------------------------------------------------ */
 
 function ExportCorretorButton({ corretores }: { corretores: string[] }) {
   const [open, setOpen] = useState(false);
   const [exporting, setExporting] = useState<string | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onClick = (e: MouseEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("mousedown", onClick);
-    document.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("mousedown", onClick); document.removeEventListener("keydown", onKey); };
-  }, [open]);
+  const close = useCallback(() => setOpen(false), []);
+  useClickOutside(wrapRef, open, close);
 
   const handleExport = async (nome: string) => {
     setExporting(nome);
@@ -367,14 +257,14 @@ function ExportCorretorButton({ corretores }: { corretores: string[] }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         disabled={!!exporting}
-        className="inline-flex h-10 items-center gap-2 rounded-sm border border-gray-500 bg-surface px-4 text-sm font-bold text-gray-100 transition-colors hover:bg-gray-600 disabled:opacity-60"
+        className="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-500/40 bg-surface px-3 text-sm font-medium text-gray-100 transition-colors hover:border-blue-base/40 hover:bg-gray-600 disabled:opacity-60"
       >
-        <Users size={16} />
-        {exporting ? `Exportando ${exporting}…` : "Exportar Relatório Corretor"}
-        <ChevronDown size={14} />
+        <Users size={15} className="text-blue-base" />
+        <span className="font-bold">{exporting ? `Exportando ${exporting}…` : "Exportar Relatório Corretor"}</span>
+        <ChevronDown size={14} className="text-gray-400" />
       </button>
       {open && (
-        <div className="absolute right-0 z-20 mt-2 max-h-64 w-64 overflow-y-auto rounded-lg border border-gray-500 bg-surface py-1 shadow-card-hover">
+        <div className="absolute right-0 z-30 mt-2 max-h-64 w-64 overflow-y-auto rounded-xl border border-gray-500/60 bg-surface py-1 shadow-card-hover">
           {corretores.map((name) => (
             <button
               key={name}
@@ -392,6 +282,10 @@ function ExportCorretorButton({ corretores }: { corretores: string[] }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Competência parsing                                                */
+/* ------------------------------------------------------------------ */
+
 const MONTH_ABBR_MAP: Record<string, number> = {
   jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6,
   jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12,
@@ -404,6 +298,10 @@ function parseCompetencia(mes: string): Competencia | null {
   if (!mesNum) return null;
   return { mes: mesNum, ano: 2000 + parseInt(m[2]) };
 }
+
+/* ------------------------------------------------------------------ */
+/*  Dashboard Page                                                     */
+/* ------------------------------------------------------------------ */
 
 export function DashboardPage() {
   const { data: allStats, loading: loadingAll, error: errorAll, refetch } = useFetch<DashboardStats>(
@@ -429,6 +327,15 @@ export function DashboardPage() {
   const s = (key: string) => search[key] ?? "";
   const setS = (key: string) => (v: string) =>
     setSearch((prev) => ({ ...prev, [key]: v }));
+
+  const availableCompetencias = useMemo(() => {
+    const set = new Map<string, Competencia>();
+    for (const d of allStats?.processosPorMes ?? []) {
+      const c = parseCompetencia(d.mes);
+      if (c) set.set(`${c.ano}-${c.mes}`, c);
+    }
+    return Array.from(set.values()).sort((a, b) => a.ano === b.ano ? a.mes - b.mes : a.ano - b.ano);
+  }, [allStats?.processosPorMes]);
 
   if (!stats && error) {
     return (
@@ -461,15 +368,6 @@ export function DashboardPage() {
   const hasProcessosMes = (stats.processosPorMes?.length ?? 0) > 0;
   const hasValorMes = (stats.valorRecebidoPorMes?.length ?? 0) > 0;
 
-  const availableCompetencias = useMemo(() => {
-    const set = new Map<string, Competencia>();
-    for (const d of allStats?.processosPorMes ?? []) {
-      const c = parseCompetencia(d.mes);
-      if (c) set.set(`${c.ano}-${c.mes}`, c);
-    }
-    return Array.from(set.values()).sort((a, b) => a.ano === b.ano ? a.mes - b.mes : a.ano - b.ano);
-  }, [allStats?.processosPorMes]);
-
   const kpis = [
     { label: "Total de clientes", value: clients.total },
     { label: "Ativos", value: clients.active },
@@ -486,7 +384,7 @@ export function DashboardPage() {
   return (
     <div className="scrollbar-slim flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto px-6 pb-8 pt-7 lg:px-10 lg:pb-12 lg:pt-[52px]">
       {/* Header */}
-      <header className="flex animate-fade-in-up flex-col gap-4 motion-reduce:animate-none">
+      <header className="relative z-10 flex animate-fade-in-up flex-col gap-4 motion-reduce:animate-none">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col gap-1">
             <h1 className="text-2xl font-bold leading-tight text-gray-100">Dashboard</h1>
@@ -501,11 +399,7 @@ export function DashboardPage() {
               onSelect={setCompetencia}
             />
             <ExportReportButton
-              data={{
-                dateLabel,
-                clients,
-                processos,
-              }}
+              data={{ dateLabel, clients, processos }}
               label="Exportar Relatório Geral"
             />
             <ExportCorretorButton corretores={corretoresEntries.map(([name]) => name)} />
@@ -528,7 +422,6 @@ export function DashboardPage() {
 
       {/* Seções — responsivo: 1 col mobile, 2 cols desktop */}
       <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
-        {/* Gráficos mensais (se houver dados) */}
         {hasProcessosMes && (
           <SectionCard
             title="Evolução mensal de processos"
@@ -551,7 +444,6 @@ export function DashboardPage() {
           </SectionCard>
         )}
 
-{/* Clientes por Corretor */}
         <SectionCard
           title="Clientes por Corretor"
           icon={<UserCircle size={16} />}
@@ -574,11 +466,10 @@ export function DashboardPage() {
           )}
         </SectionCard>
 
-        {/* Gráficos de processos por categoria */}
         {categoriasEntries.length > 0 ? (
           categoriasEntries.map(([categoria, statusMap], i) => {
             const catKey = `cat_${i}`;
-            const allData = mapToSalesforceChartData(statusMap);
+            const allData = mapToChartData(statusMap);
             const data = filterByTerm(allData, "label", s(catKey));
             const totalCat = sumValues(statusMap);
             return (

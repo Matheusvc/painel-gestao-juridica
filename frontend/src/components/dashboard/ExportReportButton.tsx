@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Download, FileSpreadsheet, Printer } from "lucide-react";
+import { useClickOutside } from "@/hooks/useClickOutside";
 import { cn } from "@/lib/cn";
+import { downloadText, escapeHtml } from "@/lib/download";
+import { sumValues } from "@/lib/charts";
 
 export interface ReportData {
   dateLabel: string;
@@ -15,28 +18,6 @@ export interface ReportData {
 
 const pct = (value: number, total: number) =>
   total > 0 ? `${Math.round((value / total) * 100)}%` : "0%";
-
-function escapeHtml(value: string | number): string {
-  return String(value).replace(/[&<>"']/g, (ch) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] ?? ch,
-  );
-}
-
-function downloadText(filename: string, text: string, mime: string) {
-  const blob = new Blob([text], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-function sumValues(record: Record<string, number>) {
-  return Object.values(record).reduce((a, b) => a + b, 0);
-}
 
 function buildCsv(d: ReportData): string {
   const { clients: c, processos } = d;
@@ -165,24 +146,8 @@ interface ExportReportButtonProps {
 export function ExportReportButton({ data, label }: ExportReportButtonProps) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
-
   const close = useCallback(() => setOpen(false), []);
-
-  useEffect(() => {
-    if (!open) return;
-    const onClick = (e: MouseEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) close();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    document.addEventListener("mousedown", onClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onClick);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open, close]);
+  useClickOutside(wrapRef, open, close);
 
   const handlePrint = () => {
     close();
@@ -216,7 +181,7 @@ export function ExportReportButton({ data, label }: ExportReportButtonProps) {
         <div
           role="menu"
           aria-label="Opções de exportação"
-          className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-lg border border-gray-500 bg-surface py-1 shadow-card-hover"
+          className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-xl border border-gray-500/60 bg-surface py-1 shadow-card-hover"
         >
           <button
             type="button"
