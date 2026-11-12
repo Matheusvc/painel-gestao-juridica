@@ -2,6 +2,7 @@ package com.castroadvocacia.plataforma.controller;
 
 import com.castroadvocacia.plataforma.dto.ServicoDTO;
 import com.castroadvocacia.plataforma.dto.ServicoRequest;
+import com.castroadvocacia.plataforma.security.AuthHelper;
 import com.castroadvocacia.plataforma.service.ServicoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,23 +18,25 @@ import java.util.UUID;
 public class ServicoController {
 
     private final ServicoService service;
+    private final AuthHelper authHelper;
 
     @GetMapping
     public List<ServicoDTO> listar(@RequestParam(required = false) String categoria) {
+        var uid = authHelper.getCurrentUsuarioId();
         if (categoria != null && !categoria.isBlank()) {
-            return service.listarPorCategoria(categoria);
+            return service.listarPorCategoria(categoria, uid);
         }
-        return service.listar();
+        return service.listar(uid);
     }
 
     @GetMapping("/categorias")
     public List<String> categorias() {
-        return service.listarCategorias();
+        return service.listarCategorias(authHelper.getCurrentUsuarioId());
     }
 
     @GetMapping("/statuses")
     public List<String> statuses() {
-        return service.listarStatuses();
+        return service.listarStatuses(authHelper.getCurrentUsuarioId());
     }
 
     @GetMapping("/{id}")
@@ -44,7 +47,7 @@ public class ServicoController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ServicoDTO criar(@Valid @RequestBody ServicoRequest req) {
-        return service.criar(req);
+        return service.criar(req, authHelper.getCurrentUsuarioId());
     }
 
     @PutMapping("/{id}")
@@ -55,6 +58,6 @@ public class ServicoController {
     @DeleteMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removerTodos() {
-        service.removerTodos();
+        service.removerTodos(authHelper.getCurrentUsuarioId());
     }
 }

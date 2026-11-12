@@ -113,7 +113,7 @@ export const dashboardApi = {
     request<MonthDetail>(`/dashboard/detalhes-mes?ano=${ano}&mes=${mes}`),
   corretores: () => request<string[]>("/dashboard/corretores"),
   corretorDetalhe: (nome: string) =>
-    request<CorretorDetalhe>(`/dashboard/corretores/${encodeURIComponent(nome)}`),
+    request<CorretorDetalhe>(`/dashboard/corretores/detalhe?nome=${encodeURIComponent(nome)}`),
 };
 
 // ---- Import ----

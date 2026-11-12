@@ -28,7 +28,7 @@ public class ImportService {
     private static final byte[] ZIP_MAGIC = {0x50, 0x4B, 0x03, 0x04};
 
     @Transactional
-    public ImportResult importar(MultipartFile file) throws Exception {
+    public ImportResult importar(MultipartFile file, UUID usuarioId) throws Exception {
         validarArquivo(file);
 
         List<Processo> processos = new ArrayList<>();
@@ -36,7 +36,6 @@ public class ImportService {
         List<Cliente> clientesNovos = new ArrayList<>();
         String categoria;
 
-        // Carrega todos os CPFs existentes de uma vez (evita N+1 queries)
         Set<String> cpfsExistentes = new HashSet<>();
         for (Cliente c : clienteRepo.findAll()) {
             if (c.getCpf() != null) {
@@ -49,7 +48,7 @@ public class ImportService {
 
             categoria = derivarCategoria(wb, file.getOriginalFilename());
 
-            processoRepo.deleteByCategoria(categoria);
+            processoRepo.deleteByCategoriaAndUsuarioId(categoria, usuarioId);
 
             for (int i = 0; i < wb.getNumberOfSheets(); i++) {
                 Sheet sheet = wb.getSheetAt(i);
@@ -63,6 +62,7 @@ public class ImportService {
 
                     Processo p = new Processo();
                     p.setCategoria(categoria);
+                    p.setUsuarioId(usuarioId);
                     p.setAba(aba);
                     p.setAno(cell(row, colunas, "ANO"));
                     p.setMes(cell(row, colunas, "MÊS", "MES"));
@@ -90,7 +90,6 @@ public class ImportService {
 
                     processos.add(p);
 
-                    // Coleta cliente sem fazer query no banco a cada iteração
                     String cpf = p.getCpf();
                     if (cpf != null && !cpf.isBlank()) {
                         String cpfLimpo = cpf.replaceAll("[^0-9]", "");
@@ -123,6 +122,7 @@ public class ImportService {
             s.setStatus(p.getStatus() != null && !p.getStatus().isBlank() ? p.getStatus() : "Aberto");
             s.setValorTotal(parseValor(p.getValor()));
             s.setCategoria(categoria);
+            s.setUsuarioId(usuarioId);
             servicos.add(s);
         }
         servicoRepo.saveAll(servicos);
@@ -130,14 +130,14 @@ public class ImportService {
         return new ImportResult(categoria, processos.size());
     }
 
-    public List<String> listarCategorias() {
-        return processoRepo.findDistinctCategorias();
+    public List<String> listarCategorias(UUID usuarioId) {
+        return processoRepo.findDistinctCategoriasByUsuarioId(usuarioId);
     }
 
     @Transactional
-    public void removerCategoria(String categoria) {
-        processoRepo.deleteByCategoria(categoria);
-        servicoRepo.deleteByCategoria(categoria);
+    public void removerCategoria(String categoria, UUID usuarioId) {
+        processoRepo.deleteByCategoriaAndUsuarioId(categoria, usuarioId);
+        servicoRepo.deleteByCategoriaAndUsuarioId(categoria, usuarioId);
     }
 
     private String derivarCategoria(Workbook wb, String filename) {
@@ -254,7 +254,6 @@ public class ImportService {
         if (nome == null || (!nome.toLowerCase().endsWith(".xlsx") && !nome.toLowerCase().endsWith(".xls"))) {
             throw new IllegalArgumentException("Apenas arquivos .xlsx são aceitos");
         }
-        // Verificar magic bytes (XLSX é um ZIP)
         byte[] header = new byte[4];
         try (InputStream is = file.getInputStream()) {
             if (is.read(header) < 4) {

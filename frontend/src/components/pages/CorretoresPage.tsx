@@ -221,10 +221,9 @@ export function CorretoresPage() {
         <>
           {/* KPIs + Export */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-2">
               <KpiCard label="Total de clientes" value={detalhe.totalClientes} />
               <KpiCard label="Total de processos" value={detalhe.totalProcessos} />
-              <KpiCard label="Valor total" value={fmt(detalhe.valorTotal)} />
             </div>
           </div>
 

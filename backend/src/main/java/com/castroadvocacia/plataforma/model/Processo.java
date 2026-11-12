@@ -53,6 +53,8 @@ public class Processo {
     private String dataMovimentacao;
     private String dataImplantacaoBeneficio;
 
+    private UUID usuarioId;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime criadoEm = LocalDateTime.now();
 

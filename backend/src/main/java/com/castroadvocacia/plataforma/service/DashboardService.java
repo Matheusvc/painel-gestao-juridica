@@ -80,8 +80,8 @@ public class DashboardService {
         }
     }
 
-    public DashboardDTO.MonthDetailDTO detalhesMes(String ano, int mes) {
-        var filtrados = processoRepo.findAll().stream()
+    public DashboardDTO.MonthDetailDTO detalhesMes(String ano, int mes, UUID usuarioId) {
+        var filtrados = processoRepo.findByUsuarioIdOrLegacy(usuarioId).stream()
             .filter(p -> ano.equals(p.getAno() != null ? p.getAno().trim() : ""))
             .filter(p -> parseMonth(p.getMes()) == mes)
             .toList();
@@ -124,12 +124,12 @@ public class DashboardService {
             || upper.equals("ENCERRADO") || upper.equals("ARQUIVO MORTO");
     }
 
-    public List<String> listarCorretores() {
-        return processoRepo.findDistinctCorretores();
+    public List<String> listarCorretores(UUID usuarioId) {
+        return processoRepo.findDistinctCorretoresByUsuarioId(usuarioId);
     }
 
-    public CorretorDetalheDTO detalheCorretor(String corretor) {
-        var procs = processoRepo.findByCorretorIgnoreCase(corretor);
+    public CorretorDetalheDTO detalheCorretor(String corretor, UUID usuarioId) {
+        var procs = processoRepo.findByCorretorIgnoreCaseAndUsuarioId(corretor, usuarioId);
 
         Set<String> clientesUnicos = procs.stream()
             .map(Processo::getCliente)
@@ -187,8 +187,8 @@ public class DashboardService {
         );
     }
 
-    public DashboardDTO obterEstatisticas(Integer mes, Integer ano) {
-        var todos = processoRepo.findAll();
+    public DashboardDTO obterEstatisticas(Integer mes, Integer ano, UUID usuarioId) {
+        var todos = processoRepo.findByUsuarioIdOrLegacy(usuarioId);
         var todosProcessos = (mes != null && ano != null)
             ? todos.stream()
                 .filter(p -> {
@@ -199,7 +199,6 @@ public class DashboardService {
                 .toList()
             : todos;
 
-        // --- Clientes derivados diretamente dos processos (planilha) ---
         Set<String> todosClientes = todosProcessos.stream()
             .map(Processo::getCliente)
             .filter(c -> c != null && !c.isBlank())
@@ -230,7 +229,6 @@ public class DashboardService {
             .distinct()
             .count();
 
-        // --- Status dos processos (planilha) para KPI de serviços ---
         int totalServicos = todosProcessos.size();
         int abertos = (int) todosProcessos.stream()
             .filter(p -> p.getStatus() != null && p.getStatus().equalsIgnoreCase("Aberto")).count();
@@ -249,10 +247,9 @@ public class DashboardService {
                 return s != null && s.toUpperCase().contains("ANÁLISE");
             }).count();
 
-        // --- Processos agrupados por categoria/aba/status (planilha) ---
         Map<String, Map<String, Long>> processos = new LinkedHashMap<>();
-        for (String categoria : processoRepo.findDistinctCategorias()) {
-            var procs = processoRepo.findByCategoria(categoria);
+        for (String categoria : processoRepo.findDistinctCategoriasByUsuarioId(usuarioId)) {
+            var procs = processoRepo.findByCategoriaAndUsuarioIdOrLegacy(categoria, usuarioId);
 
             var abasDistintas = procs.stream()
                 .map(Processo::getAba)
@@ -278,13 +275,11 @@ public class DashboardService {
             }
         }
 
-        // --- Corretores (planilha) ---
         Map<String, Long> corretores = new LinkedHashMap<>();
-        for (Object[] row : processoRepo.countClientesPorCorretor()) {
+        for (Object[] row : processoRepo.countClientesPorCorretorByUsuarioId(usuarioId)) {
             corretores.put((String) row[0], (Long) row[1]);
         }
 
-        // --- Status agregado direto dos processos (planilha) ---
         Map<String, Long> servicosPorStatus = todosProcessos.stream()
             .filter(p -> p.getStatus() != null && !p.getStatus().isBlank())
             .collect(Collectors.groupingBy(
@@ -296,7 +291,6 @@ public class DashboardService {
             .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a, LinkedHashMap::new));
 
-        // --- Valores financeiros (planilha) ---
         BigDecimal totalRecebido = todosProcessos.stream()
             .filter(p -> isEncerrado(p.getStatus()))
             .filter(p -> p.getValor() != null && !p.getValor().isBlank())
@@ -313,7 +307,6 @@ public class DashboardService {
             .filter(p -> isEncerrado(p.getStatus()))
             .count();
 
-        // --- Evolução mensal (planilha: campos ANO + MÊS) ---
         List<DashboardDTO.MonthlyCountDTO> processosPorMes = todosProcessos.stream()
             .filter(p -> p.getAno() != null && !p.getAno().isBlank()
                       && p.getMes() != null && !p.getMes().isBlank())
@@ -327,7 +320,6 @@ public class DashboardService {
             .map(e -> new DashboardDTO.MonthlyCountDTO(displayLabel(e.getKey()), e.getValue()))
             .toList();
 
-        // --- Valor recebido por mês (planilha: campos ANO + MÊS + VALOR + STATUS) ---
         List<DashboardDTO.MonthlyValueDTO> valorRecebidoPorMes = todosProcessos.stream()
             .filter(p -> isEncerrado(p.getStatus()))
             .filter(p -> p.getAno() != null && !p.getAno().isBlank()
@@ -346,7 +338,6 @@ public class DashboardService {
             .map(e -> new DashboardDTO.MonthlyValueDTO(displayLabel(e.getKey()), e.getValue()))
             .toList();
 
-        // --- Valor por categoria (planilha: campos CATEGORIA + VALOR) ---
         Map<String, BigDecimal> valorPorCategoria = todosProcessos.stream()
             .filter(p -> p.getCategoria() != null && !p.getCategoria().isBlank())
             .filter(p -> p.getValor() != null && !p.getValor().isBlank())

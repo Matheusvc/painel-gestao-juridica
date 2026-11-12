@@ -27,16 +27,16 @@ public class ServicoService {
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("dd/MM/yy HH:mm");
     private static final Locale PT_BR = Locale.of("pt", "BR");
 
-    public List<ServicoDTO> listar() {
-        return repo.findAll().stream().map(this::toDTO).toList();
+    public List<ServicoDTO> listar(UUID usuarioId) {
+        return repo.findByUsuarioIdOrLegacy(usuarioId).stream().map(this::toDTO).toList();
     }
 
-    public List<ServicoDTO> listarPorCategoria(String categoria) {
-        return repo.findByCategoria(categoria).stream().map(this::toDTO).toList();
+    public List<ServicoDTO> listarPorCategoria(String categoria, UUID usuarioId) {
+        return repo.findByCategoriaAndUsuarioIdOrLegacy(categoria, usuarioId).stream().map(this::toDTO).toList();
     }
 
-    public List<String> listarCategorias() {
-        return repo.findAll().stream()
+    public List<String> listarCategorias(UUID usuarioId) {
+        return repo.findByUsuarioIdOrLegacy(usuarioId).stream()
             .map(Servico::getCategoria)
             .filter(c -> c != null && !c.isBlank())
             .distinct()
@@ -47,9 +47,10 @@ public class ServicoService {
         return toDTO(findOrThrow(id));
     }
 
-    public ServicoDTO criar(ServicoRequest req) {
+    public ServicoDTO criar(ServicoRequest req, UUID usuarioId) {
         var s = new Servico();
         s.setNumero(proximoNumero());
+        s.setUsuarioId(usuarioId);
         applyRequest(s, req);
         return toDTO(repo.save(s));
     }
@@ -60,15 +61,16 @@ public class ServicoService {
         return toDTO(repo.save(s));
     }
 
-    public List<String> listarStatuses() {
-        return repo.findAll().stream()
+    public List<String> listarStatuses(UUID usuarioId) {
+        return repo.findByUsuarioIdOrLegacy(usuarioId).stream()
             .map(Servico::getStatus)
             .distinct()
             .toList();
     }
 
-    public void removerTodos() {
-        repo.deleteAll();
+    public void removerTodos(UUID usuarioId) {
+        var servicos = repo.findByUsuarioIdOrLegacy(usuarioId);
+        repo.deleteAll(servicos);
     }
 
     private void applyRequest(Servico s, ServicoRequest req) {
@@ -108,14 +110,14 @@ public class ServicoService {
     private String formatTotal(BigDecimal valor) {
         if (valor == null) return "R$ 0,00";
         NumberFormat nf = NumberFormat.getCurrencyInstance(PT_BR);
-        return nf.format(valor).replace(' ', ' ');
+        return nf.format(valor).replace(' ', ' ');
     }
 
     private BigDecimal parseTotal(String total) {
         if (total == null || total.isBlank()) return BigDecimal.ZERO;
         String clean = total
             .replace("R$", "")
-            .replace(" ", "")
+            .replace(" ", "")
             .replace(".", "")
             .replace(",", ".")
             .trim();

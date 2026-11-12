@@ -1,5 +1,6 @@
 package com.castroadvocacia.plataforma.controller;
 
+import com.castroadvocacia.plataforma.security.AuthHelper;
 import com.castroadvocacia.plataforma.service.ImportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -15,11 +16,13 @@ import java.util.Map;
 public class ImportController {
 
     private final ImportService importService;
+    private final AuthHelper authHelper;
 
     @PostMapping
     public ResponseEntity<Map<String, Object>> importar(@RequestParam("file") MultipartFile file) {
         try {
-            var result = importService.importar(file);
+            var uid = authHelper.getCurrentUsuarioId();
+            var result = importService.importar(file, uid);
             return ResponseEntity.ok(Map.of(
                 "success", true,
                 "categoria", result.categoria(),
@@ -34,12 +37,12 @@ public class ImportController {
 
     @GetMapping("/categorias")
     public List<String> listarCategorias() {
-        return importService.listarCategorias();
+        return importService.listarCategorias(authHelper.getCurrentUsuarioId());
     }
 
     @DeleteMapping("/{categoria}")
     public ResponseEntity<Void> removerCategoria(@PathVariable String categoria) {
-        importService.removerCategoria(categoria);
+        importService.removerCategoria(categoria, authHelper.getCurrentUsuarioId());
         return ResponseEntity.noContent().build();
     }
 }

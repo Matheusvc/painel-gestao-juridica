@@ -40,6 +40,8 @@ public class Servico {
 
     private String categoria;
 
+    private UUID usuarioId;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime criadoEm = LocalDateTime.now();
 

@@ -17,8 +17,8 @@ backend/target
 backend/.mvn/wrapper/maven-wrapper.jar
 backend/*.class
 
-# === Claude Code (config local com credenciais de teste) ===
-.claude/settings.local.json
+# === Claude Code ===
+.claude/
 
 # === Geral ===
 .DS_Store
