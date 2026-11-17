@@ -122,6 +122,7 @@ export interface ImportResult {
   success: boolean;
   categoria?: string;
   total?: number;
+  colunas?: { nome: string; tipo: string }[];
   error?: string;
 }
 
@@ -144,6 +145,19 @@ export const importApi = {
   categorias: () => request<string[]>("/import/categorias"),
   remover: (categoria: string) =>
     request<void>(`/import/${encodeURIComponent(categoria)}`, { method: "DELETE" }),
+};
+
+// ---- Planilha Dinâmica ----
+
+import type { PlanilhaData, PlanilhaStats, ColunaMeta } from "@/types/planilha";
+
+export const planilhaApi = {
+  colunas: (categoria: string) =>
+    request<ColunaMeta[]>(`/planilha/colunas?categoria=${encodeURIComponent(categoria)}`),
+  dados: (categoria: string, page = 0, size = 50) =>
+    request<PlanilhaData>(`/planilha/dados?categoria=${encodeURIComponent(categoria)}&page=${page}&size=${size}`),
+  stats: (categoria: string) =>
+    request<PlanilhaStats>(`/planilha/stats?categoria=${encodeURIComponent(categoria)}`),
 };
 
 // ---- Usuarios ----

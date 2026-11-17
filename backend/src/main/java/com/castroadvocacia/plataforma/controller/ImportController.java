@@ -26,7 +26,8 @@ public class ImportController {
             return ResponseEntity.ok(Map.of(
                 "success", true,
                 "categoria", result.categoria(),
-                "total", result.total()
+                "total", result.total(),
+                "colunas", result.colunas()
             ));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));

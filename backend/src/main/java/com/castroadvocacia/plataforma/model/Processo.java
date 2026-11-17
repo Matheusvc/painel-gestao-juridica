@@ -53,6 +53,9 @@ public class Processo {
     private String dataMovimentacao;
     private String dataImplantacaoBeneficio;
 
+    @Column(columnDefinition = "TEXT")
+    private String dados;
+
     private UUID usuarioId;
 
     @Column(nullable = false, updatable = false)

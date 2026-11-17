@@ -2,8 +2,10 @@ package com.castroadvocacia.plataforma.service;
 
 import com.castroadvocacia.plataforma.model.*;
 import com.castroadvocacia.plataforma.repository.ClienteRepository;
+import com.castroadvocacia.plataforma.repository.PlanilhaMetaRepository;
 import com.castroadvocacia.plataforma.repository.ProcessoRepository;
 import com.castroadvocacia.plataforma.repository.ServicoRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -15,6 +17,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -23,9 +26,15 @@ public class ImportService {
     private final ProcessoRepository processoRepo;
     private final ClienteRepository clienteRepo;
     private final ServicoRepository servicoRepo;
+    private final PlanilhaMetaRepository planilhaMetaRepo;
+    private final ObjectMapper objectMapper;
 
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
     private static final byte[] ZIP_MAGIC = {0x50, 0x4B, 0x03, 0x04};
+
+    private static final Pattern MONETARIO_PATTERN = Pattern.compile("^R\\$\\s*[\\d.,]+$|^[\\d.]+,[\\d]{2}$");
+    private static final Pattern DATA_PATTERN = Pattern.compile("^\\d{2}/\\d{2}/\\d{4}$");
+    private static final Pattern NUMERICO_PATTERN = Pattern.compile("^-?[\\d.,]+$");
 
     @Transactional
     public ImportResult importar(MultipartFile file, UUID usuarioId) throws Exception {
@@ -35,6 +44,8 @@ public class ImportService {
         Set<String> cpfsNovos = new HashSet<>();
         List<Cliente> clientesNovos = new ArrayList<>();
         String categoria;
+        Set<String> todasColunas = new LinkedHashSet<>();
+        List<Map<String, String>> todosRegistros = new ArrayList<>();
 
         Set<String> cpfsExistentes = new HashSet<>();
         for (Cliente c : clienteRepo.findAll()) {
@@ -49,6 +60,7 @@ public class ImportService {
             categoria = derivarCategoria(wb, file.getOriginalFilename());
 
             processoRepo.deleteByCategoriaAndUsuarioId(categoria, usuarioId);
+            planilhaMetaRepo.deleteByCategoriaAndUsuarioId(categoria, usuarioId);
 
             for (int i = 0; i < wb.getNumberOfSheets(); i++) {
                 Sheet sheet = wb.getSheetAt(i);
@@ -56,14 +68,28 @@ public class ImportService {
                 Map<String, Integer> colunas = mapearColunas(sheet);
                 if (colunas.isEmpty()) continue;
 
+                todasColunas.addAll(colunas.keySet());
+
                 for (int r = 1; r <= sheet.getLastRowNum(); r++) {
                     Row row = sheet.getRow(r);
                     if (row == null || isRowEmpty(row)) continue;
+
+                    Map<String, String> registro = new LinkedHashMap<>();
+                    for (var entry : colunas.entrySet()) {
+                        Cell cell = row.getCell(entry.getValue());
+                        String val = cell != null ? cellToString(cell) : null;
+                        if (val != null && !val.isEmpty()) {
+                            registro.put(entry.getKey(), val);
+                        }
+                    }
+                    if (registro.isEmpty()) continue;
 
                     Processo p = new Processo();
                     p.setCategoria(categoria);
                     p.setUsuarioId(usuarioId);
                     p.setAba(aba);
+                    p.setDados(objectMapper.writeValueAsString(registro));
+
                     p.setAno(cell(row, colunas, "ANO"));
                     p.setMes(cell(row, colunas, "MÊS", "MES"));
                     p.setCorretor(cell(row, colunas, "CORRETOR"));
@@ -86,16 +112,15 @@ public class ImportService {
                     p.setDataMovimentacao(cell(row, colunas, "DATA DA MOVIMENTAÇÃO", "DATA DA MOVIMENTACAO"));
                     p.setDataImplantacaoBeneficio(cell(row, colunas, "DATA DA IMPLANTAÇÃO DO BENEFÍCIO", "DATA DA IMPLANTACAO DO BENEFICIO", "DATA DA IMPLANTAÇÃO DO BENEFICIO"));
 
-                    if (p.getCliente() == null || p.getCliente().isBlank()) continue;
-
                     processos.add(p);
+                    todosRegistros.add(registro);
 
                     String cpf = p.getCpf();
                     if (cpf != null && !cpf.isBlank()) {
                         String cpfLimpo = cpf.replaceAll("[^0-9]", "");
                         if (!cpfLimpo.isEmpty() && !cpfsExistentes.contains(cpfLimpo) && cpfsNovos.add(cpfLimpo)) {
                             var c = new Cliente();
-                            c.setNome(p.getCliente().trim());
+                            c.setNome(p.getCliente() != null ? p.getCliente().trim() : "Sem nome");
                             c.setCpf(cpf.trim());
                             c.setStatus(StatusCliente.ATIVO);
                             clientesNovos.add(c);
@@ -127,7 +152,52 @@ public class ImportService {
         }
         servicoRepo.saveAll(servicos);
 
-        return new ImportResult(categoria, processos.size());
+        List<Map<String, String>> colunasDetectadas = detectarTipos(todasColunas, todosRegistros);
+        PlanilhaMeta meta = new PlanilhaMeta();
+        meta.setCategoria(categoria);
+        meta.setUsuarioId(usuarioId);
+        meta.setColunas(objectMapper.writeValueAsString(colunasDetectadas));
+        planilhaMetaRepo.save(meta);
+
+        return new ImportResult(categoria, processos.size(), colunasDetectadas);
+    }
+
+    private List<Map<String, String>> detectarTipos(Set<String> colunas, List<Map<String, String>> registros) {
+        List<Map<String, String>> resultado = new ArrayList<>();
+        for (String col : colunas) {
+            List<String> valores = new ArrayList<>();
+            for (Map<String, String> reg : registros) {
+                String v = reg.get(col);
+                if (v != null && !v.isBlank()) valores.add(v.trim());
+            }
+
+            String tipo;
+            if (valores.isEmpty()) {
+                tipo = "TEXTO";
+            } else {
+                long monetarios = valores.stream().filter(v -> MONETARIO_PATTERN.matcher(v).matches()).count();
+                long datas = valores.stream().filter(v -> DATA_PATTERN.matcher(v).matches()).count();
+                long numericos = valores.stream().filter(v -> NUMERICO_PATTERN.matcher(v).matches()).count();
+                double threshold = valores.size() * 0.5;
+
+                if (monetarios >= threshold) {
+                    tipo = "MONETARIO";
+                } else if (datas >= threshold) {
+                    tipo = "DATA";
+                } else if (numericos >= threshold) {
+                    tipo = "NUMERICO";
+                } else {
+                    Set<String> distintos = new HashSet<>(valores);
+                    tipo = distintos.size() <= 20 ? "STATUS" : "TEXTO";
+                }
+            }
+
+            Map<String, String> colMeta = new LinkedHashMap<>();
+            colMeta.put("nome", col);
+            colMeta.put("tipo", tipo);
+            resultado.add(colMeta);
+        }
+        return resultado;
     }
 
     public List<String> listarCategorias(UUID usuarioId) {
@@ -266,5 +336,5 @@ public class ImportService {
         }
     }
 
-    public record ImportResult(String categoria, int total) {}
+    public record ImportResult(String categoria, int total, List<Map<String, String>> colunas) {}
 }

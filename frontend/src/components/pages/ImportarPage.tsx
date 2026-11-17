@@ -14,6 +14,7 @@ interface UploadResult {
   success: boolean;
   categoria?: string;
   total?: number;
+  colunas?: { nome: string; tipo: string }[];
   error?: string;
 }
 
@@ -176,9 +177,18 @@ export function ImportarPage() {
               <>
                 <CheckCircle2 size={16} />
                 <span>
-                  <strong>{result.total}</strong> processos importados em{" "}
+                  <strong>{result.total}</strong> registros importados em{" "}
                   <strong>{result.categoria}</strong>
+                  {result.colunas && result.colunas.length > 0 && (
+                    <> ({result.colunas.length} colunas detectadas)</>
+                  )}
                 </span>
+                <a
+                  href="#planilha"
+                  className="ml-2 font-bold underline hover:no-underline"
+                >
+                  Ver dados
+                </a>
               </>
             ) : (
               <>
