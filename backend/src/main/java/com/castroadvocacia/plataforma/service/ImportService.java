@@ -35,6 +35,7 @@ public class ImportService {
     private static final Pattern MONETARIO_PATTERN = Pattern.compile("^R\\$\\s*[\\d.,]+$|^[\\d.]+,[\\d]{2}$");
     private static final Pattern DATA_PATTERN = Pattern.compile("^\\d{2}/\\d{2}/\\d{4}$");
     private static final Pattern NUMERICO_PATTERN = Pattern.compile("^-?[\\d.,]+$");
+    private static final Pattern DOCUMENTO_PATTERN = Pattern.compile("\\d{2}\\.?\\d{3}\\.?\\d{3}/?\\d{4}-?\\d{2}|\\d{3}\\.?\\d{3}\\.?\\d{3}-?\\d{2}");
 
     @Transactional
     public ImportResult importar(MultipartFile file, UUID usuarioId) throws Exception {
@@ -130,6 +131,90 @@ public class ImportService {
             }
         }
 
+        List<Map<String, String>> colunasDetectadas = detectarTipos(todasColunas, todosRegistros);
+
+        String colMonetaria = null, colStatus = null;
+        long menorDistintos = Long.MAX_VALUE;
+        for (Map<String, String> col : colunasDetectadas) {
+            String tipo = col.get("tipo");
+            String nome = col.get("nome");
+            boolean numerico = "MONETARIO".equals(tipo) || "NUMERICO".equals(tipo);
+            if (numerico && nome.contains("VALOR") && (colMonetaria == null || !colMonetaria.contains("VALOR"))) {
+                colMonetaria = nome;
+            } else if ("MONETARIO".equals(tipo) && colMonetaria == null) {
+                colMonetaria = nome;
+            }
+            boolean nomeExcluido = nome.matches(".*(VALOR|SALDO|DATA|VIG[EÊ]NC|OBS|OBJETO|DESCRI).*");
+            if ("STATUS".equals(tipo) && !nomeExcluido) {
+                long distintos = todosRegistros.stream().map(r -> r.get(nome)).filter(Objects::nonNull).distinct().count();
+                if (distintos < menorDistintos) {
+                    menorDistintos = distintos;
+                    colStatus = nome;
+                }
+            }
+        }
+
+        for (int idx = 0; idx < processos.size(); idx++) {
+            Processo p = processos.get(idx);
+            Map<String, String> reg = todosRegistros.get(idx);
+
+            if (p.getValor() == null && colMonetaria != null) {
+                p.setValor(reg.get(colMonetaria));
+            }
+            if (p.getStatus() == null && colStatus != null) {
+                p.setStatus(reg.get(colStatus));
+            }
+            if (p.getCliente() == null) {
+                p.setCliente(truncar(buscarPorPalavraChave(reg, PALAVRAS_CLIENTE), 250));
+            }
+            if (p.getCpf() == null) {
+                p.setCpf(truncar(buscarPorPalavraChave(reg, "CNPJ", "CPF"), 250));
+            }
+            if (p.getCpf() == null && p.getCliente() != null) {
+                var m = DOCUMENTO_PATTERN.matcher(p.getCliente());
+                if (m.find()) {
+                    p.setCpf(m.group());
+                    String nome = (p.getCliente().substring(0, m.start()) + p.getCliente().substring(m.end()))
+                        .replaceAll("(?i)\\b(CNPJ|CPF)\\b\\s*(N[º°O.]?)?\\s*[:.]?", " ")
+                        .replaceAll("\\s+", " ")
+                        .replaceAll("^[\\s,;:–-]+|[\\s,;:–-]+$", "")
+                        .trim();
+                    if (!nome.isEmpty()) p.setCliente(nome);
+                }
+            }
+            if (p.getNumeroProcesso() == null) {
+                p.setNumeroProcesso(truncar(buscarPorPalavraChave(reg, "CONTRATO N", "Nº", "N°", "NÚMERO", "NUMERO", "PROCESSO"), 250));
+            }
+            if (p.getTipo() == null) {
+                p.setTipo(truncar(buscarPorPalavraChave(reg, "OBJETO", "DESCRIÇÃO", "DESCRICAO", "SERVIÇO", "SERVICO"), 250));
+            }
+            if (p.getCorretor() == null) {
+                p.setCorretor(buscarPorPalavraChave(reg, "CORRETOR", "RESPONSÁVEL", "RESPONSAVEL", "GESTOR", "FISCAL"));
+            }
+        }
+
+        Set<String> nomesExistentes = new HashSet<>();
+        for (Cliente c : clienteRepo.findAll()) {
+            if (c.getNome() != null) nomesExistentes.add(c.getNome().trim().toUpperCase());
+        }
+        for (Cliente c : clientesNovos) {
+            nomesExistentes.add(c.getNome().trim().toUpperCase());
+        }
+        for (Processo p : processos) {
+            String nome = p.getCliente();
+            if (nome == null || nome.isBlank()) continue;
+            String doc = p.getCpf() != null ? p.getCpf().replaceAll("[^0-9]", "") : "";
+            if (!doc.isEmpty() && (cpfsExistentes.contains(doc) || cpfsNovos.contains(doc))) continue;
+            if (!nomesExistentes.add(nome.trim().toUpperCase())) continue;
+            if (!doc.isEmpty()) cpfsNovos.add(doc);
+            var c = new Cliente();
+            c.setNome(truncar(nome.trim(), 250));
+            c.setCpf(p.getCpf() != null ? truncar(p.getCpf().trim(), 20) : null);
+            c.setNumeroProcesso(p.getNumeroProcesso() != null ? truncar(p.getNumeroProcesso().trim(), 250) : null);
+            c.setStatus(StatusCliente.ATIVO);
+            clientesNovos.add(c);
+        }
+
         processoRepo.saveAll(processos);
         if (!clientesNovos.isEmpty()) {
             clienteRepo.saveAll(clientesNovos);
@@ -141,7 +226,8 @@ public class ImportService {
         for (Processo p : processos) {
             Servico s = new Servico();
             s.setNumero(++proximoNumero);
-            s.setTitulo(p.getCliente() != null ? p.getCliente() : "Sem título");
+            String titulo = p.getCliente() != null ? p.getCliente() : p.getTipo();
+            s.setTitulo(titulo != null && !titulo.isBlank() ? truncar(titulo, 80) : "Sem título");
             s.setTipoServico(p.getBeneficio() != null ? p.getBeneficio() : (p.getTipo() != null ? p.getTipo() : categoria));
             s.setResponsavel(p.getCorretor() != null ? p.getCorretor() : "");
             s.setStatus(p.getStatus() != null && !p.getStatus().isBlank() ? p.getStatus() : "Aberto");
@@ -152,7 +238,6 @@ public class ImportService {
         }
         servicoRepo.saveAll(servicos);
 
-        List<Map<String, String>> colunasDetectadas = detectarTipos(todasColunas, todosRegistros);
         PlanilhaMeta meta = new PlanilhaMeta();
         meta.setCategoria(categoria);
         meta.setUsuarioId(usuarioId);
@@ -200,6 +285,27 @@ public class ImportService {
         return resultado;
     }
 
+    private static final String[] PALAVRAS_CLIENTE = {
+        "CLIENTE", "CONTRATANTE", "CONTRATADA", "CONTRATADO", "EMPRESA", "PRESTADOR",
+        "FORNECEDOR", "RAZÃO SOCIAL", "RAZAO SOCIAL", "FAVORECIDO", "NOME"
+    };
+
+    private String truncar(String valor, int max) {
+        if (valor == null || valor.length() <= max) return valor;
+        return valor.substring(0, max - 3) + "...";
+    }
+
+    private String buscarPorPalavraChave(Map<String, String> registro, String... palavras) {
+        for (String palavra : palavras) {
+            for (var entry : registro.entrySet()) {
+                if (entry.getKey().contains(palavra) && entry.getValue() != null && !entry.getValue().isBlank()) {
+                    return entry.getValue();
+                }
+            }
+        }
+        return null;
+    }
+
     public List<String> listarCategorias(UUID usuarioId) {
         return processoRepo.findDistinctCategoriasByUsuarioId(usuarioId);
     }
@@ -208,6 +314,7 @@ public class ImportService {
     public void removerCategoria(String categoria, UUID usuarioId) {
         processoRepo.deleteByCategoriaAndUsuarioId(categoria, usuarioId);
         servicoRepo.deleteByCategoriaAndUsuarioId(categoria, usuarioId);
+        planilhaMetaRepo.deleteByCategoriaAndUsuarioId(categoria, usuarioId);
     }
 
     private String derivarCategoria(Workbook wb, String filename) {
@@ -231,7 +338,7 @@ public class ImportService {
     private Map<String, Integer> mapearColunas(Sheet sheet) {
         Row header = sheet.getRow(0);
         if (header == null) return Collections.emptyMap();
-        Map<String, Integer> map = new HashMap<>();
+        Map<String, Integer> map = new LinkedHashMap<>();
         for (int c = 0; c < header.getLastCellNum(); c++) {
             Cell cell = header.getCell(c);
             if (cell != null) {
@@ -257,7 +364,7 @@ public class ImportService {
 
     private String cellToString(Cell cell) {
         return switch (cell.getCellType()) {
-            case STRING -> cell.getStringCellValue().trim();
+            case STRING -> cell.getStringCellValue().replace(' ', ' ').replaceAll("[ \\t]+", " ").trim();
             case NUMERIC -> {
                 if (DateUtil.isCellDateFormatted(cell)) {
                     yield new java.text.SimpleDateFormat("dd/MM/yyyy").format(cell.getDateCellValue());

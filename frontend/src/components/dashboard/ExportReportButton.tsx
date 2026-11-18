@@ -4,6 +4,9 @@ import { useClickOutside } from "@/hooks/useClickOutside";
 import { cn } from "@/lib/cn";
 import { downloadText, escapeHtml } from "@/lib/download";
 import { sumValues } from "@/lib/charts";
+import { servicesApi } from "@/lib/api";
+import { formatTotalDisplay } from "@/lib/currency";
+import type { Service } from "@/types/entities";
 
 export interface ReportData {
   dateLabel: string;
@@ -19,7 +22,16 @@ export interface ReportData {
 const pct = (value: number, total: number) =>
   total > 0 ? `${Math.round((value / total) * 100)}%` : "0%";
 
-function buildCsv(d: ReportData): string {
+function itensDoStatus(itens: Service[], chave: string, status: string): Service[] {
+  return itens.filter(
+    (s) =>
+      s.status === status &&
+      s.categoria != null &&
+      (chave === s.categoria || chave.startsWith(`${s.categoria} — `)),
+  );
+}
+
+function buildCsv(d: ReportData, itens: Service[]): string {
   const { clients: c, processos } = d;
   const rows: string[][] = [
     ["Relatório do Dashboard — Castro Advocacia"],
@@ -38,6 +50,14 @@ function buildCsv(d: ReportData): string {
     for (const [label, value] of Object.entries(statusMap)) {
       rows.push([label, String(value), pct(value, totalCat)]);
     }
+    for (const label of Object.keys(statusMap)) {
+      const lista = itensDoStatus(itens, categoria, label);
+      if (lista.length === 0) continue;
+      rows.push([], [`${label} (${lista.length})`], ["Id", "Cliente / Título", "Descrição", "Corretor", "Valor"]);
+      for (const s of lista) {
+        rows.push([s.id, s.title, s.service, s.owner.name, formatTotalDisplay(s.total)]);
+      }
+    }
   }
 
   const body = rows
@@ -46,7 +66,7 @@ function buildCsv(d: ReportData): string {
   return `﻿${body}`;
 }
 
-function buildReportHtml(d: ReportData): string {
+function buildReportHtml(d: ReportData, itens: Service[]): string {
   const { clients: c, processos } = d;
   const row = (label: string, value: string | number, extra: string) =>
     `<tr><td>${escapeHtml(label)}</td><td class="num">${value}</td><td class="num muted">${extra}</td></tr>`;
@@ -57,11 +77,29 @@ function buildReportHtml(d: ReportData): string {
       const rows = Object.entries(statusMap)
         .map(([label, value]) => row(label, value, pct(value, totalCat)))
         .join("\n    ");
+      const detalhes = Object.keys(statusMap)
+        .map((label) => {
+          const lista = itensDoStatus(itens, categoria, label);
+          if (lista.length === 0) return "";
+          const linhas = lista
+            .map(
+              (s) =>
+                `<tr><td>${escapeHtml(s.id)}</td><td>${escapeHtml(s.title)}</td><td class="muted">${escapeHtml(s.service)}</td><td>${escapeHtml(s.owner.name)}</td><td class="num">${escapeHtml(formatTotalDisplay(s.total))}</td></tr>`,
+            )
+            .join("\n    ");
+          return `
+  <h3>${escapeHtml(label)} <span class="muted">(${lista.length})</span></h3>
+  <table><thead><tr><th>Id</th><th>Cliente / Título</th><th>Descrição</th><th>Corretor</th><th class="num">Valor</th></tr></thead><tbody>
+    ${linhas}
+  </tbody></table>`;
+        })
+        .join("\n");
       return `
   <h2>${escapeHtml(categoria)}</h2>
   <table><thead><tr><th>Status</th><th class="num">Quantidade</th><th class="num">Percentual</th></tr></thead><tbody>
     ${rows}
-  </tbody></table>`;
+  </tbody></table>
+  ${detalhes}`;
     })
     .join("\n");
 
@@ -77,6 +115,7 @@ function buildReportHtml(d: ReportData): string {
   h1{font-size:18px;margin:0 0 2px}
   .sub{color:#858b99;font-size:12px}
   h2{font-size:13px;color:#2e3da3;margin:24px 0 8px;text-transform:uppercase;letter-spacing:.5px}
+  h3{font-size:12px;margin:16px 0 6px}
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
   .kpi{border:1px solid #e3e5e8;border-radius:8px;padding:12px}
   .kpi .l{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#858b99}
@@ -107,7 +146,7 @@ function buildReportHtml(d: ReportData): string {
 </body></html>`;
 }
 
-function printReport(d: ReportData) {
+function printReport(d: ReportData, itens: Service[]) {
   const iframe = document.createElement("iframe");
   iframe.style.position = "fixed";
   iframe.style.right = "0";
@@ -122,7 +161,7 @@ function printReport(d: ReportData) {
     return;
   }
   doc.open();
-  doc.write(buildReportHtml(d));
+  doc.write(buildReportHtml(d, itens));
   doc.close();
   const win = iframe.contentWindow;
   const cleanup = () => window.setTimeout(() => iframe.remove(), 1000);
@@ -149,17 +188,26 @@ export function ExportReportButton({ data, label }: ExportReportButtonProps) {
   const close = useCallback(() => setOpen(false), []);
   useClickOutside(wrapRef, open, close);
 
-  const handlePrint = () => {
-    close();
-    printReport(data);
+  const carregarItens = async (): Promise<Service[]> => {
+    try {
+      return await servicesApi.list();
+    } catch {
+      return [];
+    }
   };
 
-  const handleCsv = () => {
+  const handlePrint = async () => {
     close();
+    printReport(data, await carregarItens());
+  };
+
+  const handleCsv = async () => {
+    close();
+    const itens = await carregarItens();
     const stamp = new Date().toISOString().slice(0, 10);
     downloadText(
       `relatorio-dashboard-${stamp}.csv`,
-      buildCsv(data),
+      buildCsv(data, itens),
       "text/csv;charset=utf-8",
     );
   };

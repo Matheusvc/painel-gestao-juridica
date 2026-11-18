@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BarChart3, Upload, UserCheck, Users } from "lucide-react";
+import { Upload, UserCheck, Users } from "lucide-react";
 import { InlineIcon } from "./InlineIcon";
 import dashboardIcon from "@/assets/icon-dashboard.svg?raw";
 import clientesIcon from "@/assets/icon-clientes.svg?raw";
@@ -40,12 +40,6 @@ export const navItems: NavItem[] = [
     label: "Corretores",
     icon: <UserCheck size={22} />,
     href: "#corretores",
-  },
-  {
-    id: "planilha",
-    label: "Planilha",
-    icon: <BarChart3 size={22} />,
-    href: "#planilha",
   },
   {
     id: "importar",
