@@ -11,6 +11,7 @@ export interface NavItem {
   /** Ícone já dimensionado (20px), herda a cor do texto (currentColor). */
   icon: ReactNode;
   href: string;
+  adminOnly?: boolean;
 }
 
 const iconClass = "size-[22px] [&>svg]:size-[22px]";
@@ -52,5 +53,6 @@ export const navItems: NavItem[] = [
     label: "Usuarios",
     icon: <Users size={22} />,
     href: "#usuarios",
+    adminOnly: true,
   },
 ];

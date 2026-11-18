@@ -11,13 +11,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface ServicoRepository extends JpaRepository<Servico, UUID> {
-    List<Servico> findByCategoria(String categoria);
-    void deleteByCategoria(String categoria);
-
     @Query("SELECT MAX(s.numero) FROM Servico s")
     Optional<Integer> findMaxNumero();
 
-    // --- Queries filtradas por usuário (inclui dados legados com usuarioId NULL) ---
+    // Queries por usuário incluem dados legados (usuarioId NULL), visíveis a todos os usuários.
 
     @Query("SELECT s FROM Servico s WHERE s.usuarioId = :uid OR s.usuarioId IS NULL")
     List<Servico> findByUsuarioIdOrLegacy(@Param("uid") UUID usuarioId);

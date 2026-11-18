@@ -11,22 +11,7 @@ import java.util.UUID;
 
 public interface ProcessoRepository extends JpaRepository<Processo, UUID> {
 
-    List<Processo> findByCategoria(String categoria);
-
-    void deleteByCategoria(String categoria);
-
-    @Query("SELECT DISTINCT p.categoria FROM Processo p ORDER BY p.categoria")
-    List<String> findDistinctCategorias();
-
-    @Query("SELECT p.corretor, COUNT(DISTINCT p.cliente) FROM Processo p WHERE p.corretor IS NOT NULL AND p.corretor <> '' GROUP BY p.corretor ORDER BY COUNT(DISTINCT p.cliente) DESC")
-    List<Object[]> countClientesPorCorretor();
-
-    @Query("SELECT DISTINCT p.corretor FROM Processo p WHERE p.corretor IS NOT NULL AND p.corretor <> '' ORDER BY p.corretor")
-    List<String> findDistinctCorretores();
-
-    List<Processo> findByCorretorIgnoreCase(String corretor);
-
-    // --- Queries filtradas por usuário (inclui dados legados com usuarioId NULL) ---
+    // Todas as queries incluem dados legados (usuarioId NULL), visíveis a todos os usuários.
 
     @Query("SELECT p FROM Processo p WHERE p.usuarioId = :uid OR p.usuarioId IS NULL")
     List<Processo> findByUsuarioIdOrLegacy(@Param("uid") UUID usuarioId);

@@ -34,14 +34,9 @@ public class ServicoController {
         return service.listarCategorias(authHelper.getCurrentUsuarioId());
     }
 
-    @GetMapping("/statuses")
-    public List<String> statuses() {
-        return service.listarStatuses(authHelper.getCurrentUsuarioId());
-    }
-
     @GetMapping("/{id}")
     public ServicoDTO buscar(@PathVariable UUID id) {
-        return service.buscarPorId(id);
+        return service.buscarPorId(id, authHelper.getCurrentUsuarioId());
     }
 
     @PostMapping
@@ -52,7 +47,7 @@ public class ServicoController {
 
     @PutMapping("/{id}")
     public ServicoDTO atualizar(@PathVariable UUID id, @Valid @RequestBody ServicoRequest req) {
-        return service.atualizar(id, req);
+        return service.atualizar(id, req, authHelper.getCurrentUsuarioId());
     }
 
     @DeleteMapping

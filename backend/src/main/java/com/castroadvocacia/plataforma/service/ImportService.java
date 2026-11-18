@@ -2,7 +2,6 @@ package com.castroadvocacia.plataforma.service;
 
 import com.castroadvocacia.plataforma.model.*;
 import com.castroadvocacia.plataforma.repository.ClienteRepository;
-import com.castroadvocacia.plataforma.repository.PlanilhaMetaRepository;
 import com.castroadvocacia.plataforma.repository.ProcessoRepository;
 import com.castroadvocacia.plataforma.repository.ServicoRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,7 +25,6 @@ public class ImportService {
     private final ProcessoRepository processoRepo;
     private final ClienteRepository clienteRepo;
     private final ServicoRepository servicoRepo;
-    private final PlanilhaMetaRepository planilhaMetaRepo;
     private final ObjectMapper objectMapper;
 
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -48,11 +46,12 @@ public class ImportService {
         Set<String> todasColunas = new LinkedHashSet<>();
         List<Map<String, String>> todosRegistros = new ArrayList<>();
 
+        List<Cliente> clientesDoUsuario = clienteRepo.findByUsuarioIdOrLegacy(usuarioId);
         Set<String> cpfsExistentes = new HashSet<>();
-        for (Cliente c : clienteRepo.findAll()) {
-            if (c.getCpf() != null) {
-                cpfsExistentes.add(c.getCpf().replaceAll("[^0-9]", ""));
-            }
+        Set<String> nomesExistentes = new HashSet<>();
+        for (Cliente c : clientesDoUsuario) {
+            if (c.getCpf() != null) cpfsExistentes.add(c.getCpf().replaceAll("[^0-9]", ""));
+            if (c.getNome() != null) nomesExistentes.add(c.getNome().trim().toUpperCase());
         }
 
         try (InputStream is = file.getInputStream();
@@ -61,7 +60,7 @@ public class ImportService {
             categoria = derivarCategoria(wb, file.getOriginalFilename());
 
             processoRepo.deleteByCategoriaAndUsuarioId(categoria, usuarioId);
-            planilhaMetaRepo.deleteByCategoriaAndUsuarioId(categoria, usuarioId);
+            servicoRepo.deleteByCategoriaAndUsuarioId(categoria, usuarioId);
 
             for (int i = 0; i < wb.getNumberOfSheets(); i++) {
                 Sheet sheet = wb.getSheetAt(i);
@@ -124,6 +123,7 @@ public class ImportService {
                             c.setNome(p.getCliente() != null ? p.getCliente().trim() : "Sem nome");
                             c.setCpf(cpf.trim());
                             c.setStatus(StatusCliente.ATIVO);
+                            c.setUsuarioId(usuarioId);
                             clientesNovos.add(c);
                         }
                     }
@@ -193,10 +193,6 @@ public class ImportService {
             }
         }
 
-        Set<String> nomesExistentes = new HashSet<>();
-        for (Cliente c : clienteRepo.findAll()) {
-            if (c.getNome() != null) nomesExistentes.add(c.getNome().trim().toUpperCase());
-        }
         for (Cliente c : clientesNovos) {
             nomesExistentes.add(c.getNome().trim().toUpperCase());
         }
@@ -212,6 +208,7 @@ public class ImportService {
             c.setCpf(p.getCpf() != null ? truncar(p.getCpf().trim(), 20) : null);
             c.setNumeroProcesso(p.getNumeroProcesso() != null ? truncar(p.getNumeroProcesso().trim(), 250) : null);
             c.setStatus(StatusCliente.ATIVO);
+            c.setUsuarioId(usuarioId);
             clientesNovos.add(c);
         }
 
@@ -237,12 +234,6 @@ public class ImportService {
             servicos.add(s);
         }
         servicoRepo.saveAll(servicos);
-
-        PlanilhaMeta meta = new PlanilhaMeta();
-        meta.setCategoria(categoria);
-        meta.setUsuarioId(usuarioId);
-        meta.setColunas(objectMapper.writeValueAsString(colunasDetectadas));
-        planilhaMetaRepo.save(meta);
 
         return new ImportResult(categoria, processos.size(), colunasDetectadas);
     }
@@ -314,7 +305,6 @@ public class ImportService {
     public void removerCategoria(String categoria, UUID usuarioId) {
         processoRepo.deleteByCategoriaAndUsuarioId(categoria, usuarioId);
         servicoRepo.deleteByCategoriaAndUsuarioId(categoria, usuarioId);
-        planilhaMetaRepo.deleteByCategoriaAndUsuarioId(categoria, usuarioId);
     }
 
     private String derivarCategoria(Workbook wb, String filename) {

@@ -80,10 +80,12 @@ export function ImportarPage() {
   const handleRemoveAll = useCallback(async () => {
     if (!confirm("Deseja retirar todos os dados (clientes, serviços e dashboard)?")) return;
     await Promise.all([
+      ...(categorias ?? []).map((cat) => importApi.remover(cat)),
       servicesApi.removeAll(),
       clientsApi.removeAll(),
     ]);
-  }, []);
+    refetch();
+  }, [categorias, refetch]);
 
   return (
     <div className="scrollbar-slim flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto px-6 pb-8 pt-7 lg:px-12 lg:pb-12 lg:pt-[52px]">

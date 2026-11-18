@@ -33,6 +33,8 @@ public class Cliente {
     @Column(nullable = false)
     private StatusCliente status = StatusCliente.ATIVO;
 
+    private UUID usuarioId;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime criadoEm = LocalDateTime.now();
 

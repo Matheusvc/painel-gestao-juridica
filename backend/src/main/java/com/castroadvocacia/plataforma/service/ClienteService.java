@@ -19,43 +19,44 @@ public class ClienteService {
 
     private final ClienteRepository repo;
 
-    public List<ClienteDTO> listar() {
-        return repo.findAll().stream().map(this::toDTO).toList();
+    public List<ClienteDTO> listar(UUID usuarioId) {
+        return repo.findByUsuarioIdOrLegacy(usuarioId).stream().map(this::toDTO).toList();
     }
 
-    public ClienteDTO buscarPorId(UUID id) {
-        return toDTO(findOrThrow(id));
+    public ClienteDTO buscarPorId(UUID id, UUID usuarioId) {
+        return toDTO(findOrThrow(id, usuarioId));
     }
 
-    public ClienteDTO criar(ClienteRequest req) {
+    public ClienteDTO criar(ClienteRequest req, UUID usuarioId) {
         var c = new Cliente();
-        c.setNome(req.name());
-        c.setCpf(req.cpf());
-        c.setNumeroProcesso(req.processNumber());
+        c.setUsuarioId(usuarioId);
+        applyRequest(c, req);
         return toDTO(repo.save(c));
     }
 
-    public ClienteDTO atualizar(UUID id, ClienteRequest req) {
-        var c = findOrThrow(id);
-        c.setNome(req.name());
-        c.setCpf(req.cpf());
-        c.setNumeroProcesso(req.processNumber());
+    public ClienteDTO atualizar(UUID id, ClienteRequest req, UUID usuarioId) {
+        var c = findOrThrow(id, usuarioId);
+        applyRequest(c, req);
         return toDTO(repo.save(c));
     }
 
-    public void removerTodos() {
-        repo.deleteAll();
+    public void removerTodos(UUID usuarioId) {
+        repo.deleteAll(repo.findByUsuarioIdOrLegacy(usuarioId));
     }
 
-    public void excluir(UUID id) {
-        if (!repo.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cliente nao encontrado");
-        }
-        repo.deleteById(id);
+    public void excluir(UUID id, UUID usuarioId) {
+        repo.delete(findOrThrow(id, usuarioId));
     }
 
-    private Cliente findOrThrow(UUID id) {
+    private void applyRequest(Cliente c, ClienteRequest req) {
+        c.setNome(req.name());
+        c.setCpf(req.cpf());
+        c.setNumeroProcesso(req.processNumber());
+    }
+
+    private Cliente findOrThrow(UUID id, UUID usuarioId) {
         return repo.findById(id)
+            .filter(c -> c.getUsuarioId() == null || c.getUsuarioId().equals(usuarioId))
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cliente nao encontrado"));
     }
 

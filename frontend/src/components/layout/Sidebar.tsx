@@ -2,6 +2,7 @@ import { BrandLogo } from "./BrandLogo";
 import { SidebarLink } from "./SidebarLink";
 import { UserCard } from "./UserCard";
 import { navItems } from "./navItems";
+import { useAuth } from "@/context/AuthContext";
 
 export interface SidebarUser {
   name: string;
@@ -28,6 +29,10 @@ export function Sidebar({
   onProfileClick,
   navLabel = "Navegação principal",
 }: SidebarProps) {
+  const { user: authUser } = useAuth();
+  const isAdmin = authUser?.perfil === "ADMIN";
+  const visibleItems = navItems.filter((item) => !item.adminOnly || isAdmin);
+
   return (
     <div className="flex h-full w-full flex-col bg-gray-100">
       <div className="flex items-center border-b border-gray-200 px-5 py-6">
@@ -36,7 +41,7 @@ export function Sidebar({
 
       <nav aria-label={navLabel} className="flex-1 overflow-y-auto px-4 py-5">
         <ul className="flex flex-col gap-1">
-          {navItems.map((item) => (
+          {visibleItems.map((item) => (
             <SidebarLink
               key={item.id}
               item={item}

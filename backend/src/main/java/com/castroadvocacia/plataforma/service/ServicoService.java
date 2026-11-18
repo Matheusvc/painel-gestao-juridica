@@ -43,29 +43,22 @@ public class ServicoService {
             .toList();
     }
 
-    public ServicoDTO buscarPorId(UUID id) {
-        return toDTO(findOrThrow(id));
+    public ServicoDTO buscarPorId(UUID id, UUID usuarioId) {
+        return toDTO(findOrThrow(id, usuarioId));
     }
 
     public ServicoDTO criar(ServicoRequest req, UUID usuarioId) {
         var s = new Servico();
-        s.setNumero(proximoNumero());
+        s.setNumero(repo.findMaxNumero().orElse(0) + 1);
         s.setUsuarioId(usuarioId);
         applyRequest(s, req);
         return toDTO(repo.save(s));
     }
 
-    public ServicoDTO atualizar(UUID id, ServicoRequest req) {
-        var s = findOrThrow(id);
+    public ServicoDTO atualizar(UUID id, ServicoRequest req, UUID usuarioId) {
+        var s = findOrThrow(id, usuarioId);
         applyRequest(s, req);
         return toDTO(repo.save(s));
-    }
-
-    public List<String> listarStatuses(UUID usuarioId) {
-        return repo.findByUsuarioIdOrLegacy(usuarioId).stream()
-            .map(Servico::getStatus)
-            .distinct()
-            .toList();
     }
 
     public void removerTodos(UUID usuarioId) {
@@ -81,16 +74,9 @@ public class ServicoService {
         s.setStatus(req.status());
     }
 
-    private Integer proximoNumero() {
-        return repo.findAll().stream()
-            .map(Servico::getNumero)
-            .filter(n -> n != null)
-            .max(Integer::compareTo)
-            .orElse(0) + 1;
-    }
-
-    private Servico findOrThrow(UUID id) {
+    private Servico findOrThrow(UUID id, UUID usuarioId) {
         return repo.findById(id)
+            .filter(s -> s.getUsuarioId() == null || s.getUsuarioId().equals(usuarioId))
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Servico nao encontrado"));
     }
 

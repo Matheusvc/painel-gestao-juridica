@@ -39,6 +39,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
                 .requestMatchers("/api/**").authenticated()
                 // Frontend estático servido pelo próprio Spring Boot
                 .requestMatchers(HttpMethod.GET, "/", "/index.html", "/assets/**").permitAll()
